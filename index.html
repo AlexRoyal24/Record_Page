@@ -21,7 +21,7 @@ body{
   color:var(--blanco);
   display:flex;
   justify-content:center;
-  align-items:center;
+  align-items:flex-start;
   padding:20px;
 }
 .app{
@@ -33,6 +33,7 @@ body{
   box-shadow:0 10px 30px rgba(0,0,0,0.4);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
+  margin-bottom:60px;
 }
 header{
   display:flex;
@@ -54,7 +55,7 @@ h1{font-size:20px;margin:0}
 p.lead{font-size:13px;color:rgba(255,255,255,0.85)}
 main{
   display:grid;
-  grid-template-columns:340px 1fr;
+  grid-template-columns:1fr;
   gap:16px;
 }
 .card{
@@ -97,7 +98,7 @@ th{opacity:0.85;font-weight:600}
 #profilePanel{
   position:fixed;bottom:-100%;left:0;width:100%;max-width:480px;
   margin:0 auto;right:0;
-  background: rgba(0,0,0,0.85);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  background: rgba(0,0,0,0.85);backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
   border-top-left-radius:18px;border-top-right-radius:18px;
   padding:16px;
   transition:bottom 0.3s ease;
@@ -108,31 +109,7 @@ th{opacity:0.85;font-weight:600}
 #profilePanel input{margin-bottom:8px;}
 #chartContainer{margin-top:16px;background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;}
 
-/* Modal agregar alumno */
-#newStudentModal{
-  position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
-  background: rgba(0,0,0,0.9);
-  padding:20px;
-  border-radius:18px;
-  display:none;
-  z-index:2000;
-  width:90%;
-  max-width:400px;
-}
-#newStudentModal input{width:100%;margin-bottom:10px;}
-#newStudentModal button{width:100%;}
-
-/* Botón flotante nuevo alumno */
-#newStudentBtn{
-  position:fixed;bottom:90px;right:20px;width:56px;height:56px;
-  background:linear-gradient(135deg,var(--azul-2),var(--azul-1));
-  border-radius:50%;
-  display:flex;justify-content:center;align-items:center;
-  font-weight:700;font-size:14px;color:white;
-  cursor:pointer;z-index:1000;
-}
-
-@media (max-width:900px){main{grid-template-columns:1fr};.grid{grid-template-columns:1fr}}
+@media (max-width:900px){.grid{grid-template-columns:1fr}}
 @media (max-width:450px){.logo .icon{width:44px;height:44px;font-size:18px};header{flex-direction:column;align-items:flex-start;gap:8px}}
 </style>
 </head>
@@ -148,15 +125,13 @@ th{opacity:0.85;font-weight:600}
     </div>
     <div id="topActions"></div>
   </header>
-  <main>
-    <section id="left" class="card"></section>
-    <section id="right" class="card"></section>
+  <main id="mainSpaces">
+    <!-- Espacios de alumnos se generarán aquí -->
   </main>
 </div>
 
-<!-- Botones flotantes -->
-<div id="profileBtn">👤</div>
-<div id="newStudentBtn">+</div>
+<!-- Botón flotante Nuevo Alumno -->
+<div id="profileBtn">➕</div>
 
 <!-- Panel de perfil -->
 <div id="profilePanel">
@@ -171,23 +146,14 @@ th{opacity:0.85;font-weight:600}
   </div>
 </div>
 
-<!-- Modal agregar alumno -->
-<div id="newStudentModal">
-  <h3>Agregar nuevo alumno</h3>
-  <input type="text" id="newStudentName" placeholder="Nombre del alumno">
-  <button class="btn" id="btnAddStudent">Agregar</button>
-</div>
-
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
 <script>
-const LS_USERS='natacion_users_v3';
-const LS_CURRENT='natacion_current_v3';
-const left=document.getElementById('left');
-const right=document.getElementById('right');
-const topActions=document.getElementById('topActions');
+const LS_USERS='natacion_users_v4';
+const mainSpaces=document.getElementById('mainSpaces');
 const profileBtn=document.getElementById('profileBtn');
 const profilePanel=document.getElementById('profilePanel');
 const profilePhoto=document.getElementById('profilePhoto');
@@ -195,13 +161,8 @@ const profileName=document.getElementById('profileName');
 const profileUrl=document.getElementById('profileUrl');
 const saveProfile=document.getElementById('saveProfile');
 const closeProfile=document.getElementById('closeProfile');
-const newStudentBtn=document.getElementById('newStudentBtn');
-const newStudentModal=document.getElementById('newStudentModal');
-const newStudentName=document.getElementById('newStudentName');
-const btnAddStudent=document.getElementById('btnAddStudent');
-const byId=id=>document.getElementById(id);
 
-const PROFESOR_KEY="Club_Coromac_2025"; // Cambiar clave real
+const PROFESOR_KEY="Club_Coromac_2025"; //Cambiar clave real
 
 function requireProfessorAccess(){
   const key=sessionStorage.getItem('profesor_access');
@@ -213,119 +174,101 @@ function requireProfessorAccess(){
 
 function loadUsers(){return JSON.parse(localStorage.getItem(LS_USERS)||'[]');}
 function saveUsers(u){localStorage.setItem(LS_USERS,JSON.stringify(u));}
-function setCurrent(name){localStorage.setItem(LS_CURRENT,name);}
-function getCurrent(){return localStorage.getItem(LS_CURRENT);}
-function logout(){localStorage.removeItem(LS_CURRENT); render();}
 
-// --------- RENDER PRINCIPAL ---------
-function render(){
-  if(!requireProfessorAccess()){left.innerHTML="Acceso denegado"; right.innerHTML=""; return;}
-  const current=getCurrent();
-  const users=loadUsers();
-
-  // Si no hay alumno seleccionado, mostrar modal para agregar
-  if(!current){
-    showNewStudentModal();
-    left.innerHTML=''; right.innerHTML='';
-  } else {
-    const me=users.find(u=>u.nombre===current);
-    if(!me){logout(); return;}
-    topActions.innerHTML=`<div class="muted">Nadador: <strong>${me.nombre}</strong></div> <div style="display:flex;gap:8px"><button class="link" id="btnExport">Exportar PDF</button><button class="link" id="btnLogout">Cerrar sesión</button></div>`;
-    
-    left.innerHTML=`<form id="registroForm">
-      <label class="muted">Fecha</label><input id="inpFecha" type="date" required/>
-      <label class="muted">Metros nadados</label><input id="inpMetros" type="number" min="0" placeholder="Ej: 1500" required/>
+// --------- CREAR ESPACIO DE ALUMNO ---------
+function createAlumnoSpace(user){
+  const card=document.createElement('section');
+  card.className='card';
+  card.dataset.nombre=user.nombre;
+  
+  card.innerHTML=`
+    <h3>${user.nombre}</h3>
+    <form>
+      <label class="muted">Fecha</label>
+      <input type="date" required class="inpFecha"/>
+      <label class="muted">Metros nadados</label>
+      <input type="number" min="0" placeholder="Ej: 1500" required class="inpMetros"/>
       <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn" type="submit">Agregar</button>
-        <button class="btn small" id="btnBorrarCuenta" type="button">Eliminar nadador</button>
+        <button class="btn btnAdd" type="submit">Agregar</button>
+        <button class="btn small btnDeleteAlumno" type="button">Eliminar Alumno</button>
       </div>
     </form>
-    <div class="message" id="msgSmall">Tus mensajes aparecerán aquí.</div>`;
-    
-    right.innerHTML=`<h3>Historial & Progreso</h3>
-      <div class="grid">
-        <div class="card" style="padding:10px"><div class="muted">Total sesiones</div><div style="font-weight:700;font-size:20px;margin-top:6px">${me.registros.length}</div></div>
-        <div class="card" style="padding:10px"><div class="muted">Metros acumulados</div><div style="font-weight:700;font-size:20px;margin-top:6px">${me.registros.reduce((s,a)=>s+parseInt(a.metros||0),0)} m</div></div>
-      </div>
-      <div class="history"><table><thead><tr><th>Fecha</th><th>Metros</th><th>Cambio</th><th>Eliminar</th></tr></thead><tbody id="tblBody"></tbody></table></div>
-      <div id="chartContainer"><canvas id="chartProgress"></canvas></div>`;
-    
-    document.getElementById('registroForm').addEventListener('submit',e=>{e.preventDefault(); addRegistro(me.nombre);});
-    document.getElementById('btnLogout').onclick=()=>{logout();};
-    document.getElementById('btnExport').onclick=()=>exportPDF(me);
-    document.getElementById('btnBorrarCuenta').onclick=()=>deleteAccount(me.nombre);
-    renderHistory(me); renderSmallMsg(me); renderChart(me);
+    <div class="message">Tus mensajes aparecerán aquí.</div>
+    <div class="history"><table><thead><tr><th>Fecha</th><th>Metros</th><th>Cambio</th><th>Eliminar</th></tr></thead><tbody class="tblBody"></tbody></table></div>
+    <div id="chartContainer"><canvas class="chartProgress"></canvas></div>
+  `;
 
-    profileName.value=me.nombre;
-    profilePhoto.src=me.foto||'https://via.placeholder.com/80';
-    profileUrl.value=me.foto||'';
-  }
-}
+  mainSpaces.appendChild(card);
 
-// --------- FUNCIONES MODAL NUEVO ALUMNO ---------
-function showNewStudentModal(){
-  newStudentModal.style.display='block';
-  newStudentName.value='';
-}
-function hideNewStudentModal(){
-  newStudentModal.style.display='none';
-}
-newStudentBtn.onclick=()=>showNewStudentModal();
-btnAddStudent.onclick=()=>{
-  const nombre=newStudentName.value.trim();
-  if(!nombre){alert('Ingresa nombre'); return;}
-  const users=loadUsers();
-  if(users.find(u=>u.nombre===nombre)){alert('Ya existe'); return;}
-  users.push({nombre,registros:[]});
-  saveUsers(users);
-  setCurrent(nombre);
-  hideNewStudentModal();
-  render();
+  const form=card.querySelector('form');
+  const inpFecha=card.querySelector('.inpFecha');
+  const inpMetros=card.querySelector('.inpMetros');
+  const tblBody=card.querySelector('.tblBody');
+  const message=card.querySelector('.message');
+  const chartCanvas=card.querySelector('.chartProgress');
+
+  // Agregar registro
+  form.onsubmit=(e)=>{
+    e.preventDefault();
+    addRegistro(user.nombre, inpFecha.value, parseInt(inpMetros.value), message, tblBody, chartCanvas);
+  };
+
+  // Eliminar alumno
+  card.querySelector('.btnDeleteAlumno').onclick=()=>{
+    if(!confirm('¿Eliminar alumno?')) return;
+    let users=loadUsers();
+    users=users.filter(u=>u.nombre!==user.nombre);
+    saveUsers(users);
+    card.remove();
+  };
+
+  renderHistory(user, tblBody, message);
+  renderChart(user, chartCanvas);
 }
 
-// --------- FUNCIONES DE REGISTRO ---------
-function addRegistro(nombre){
-  const fecha=byId('inpFecha').value;
-  const metros=parseInt(byId('inpMetros').value);
+function addRegistro(nombre, fecha, metros, message, tblBody, chartCanvas){
   if(!fecha||isNaN(metros)){alert('Rellena fecha y metros'); return;}
   const users=loadUsers();
   const user=users.find(u=>u.nombre===nombre);
-  user.registros.push({fecha,metros});
+  const prev=user.registros[user.registros.length-1]||null;
+  user.registros.push({fecha, metros});
   saveUsers(users);
-  render();
-  const prev=user.registros.length>1?user.registros[user.registros.length-2]:null;
-  showMotivationMessage(user,metros,prev);
+  renderHistory(user, tblBody, message);
+  renderChart(user, chartCanvas);
+  showMotivationMessage(user, metros, prev, message);
 }
 
-function renderHistory(user){
-  const tbody=byId('tblBody'); tbody.innerHTML='';
+function renderHistory(user, tblBody, message){
+  tblBody.innerHTML='';
   user.registros.slice().reverse().forEach((r,idx)=>{
     const i=user.registros.length-1-idx;
     const prev=i>0?user.registros[i-1]:null;
     const change=prev?((r.metros-prev.metros)>=0?'+'+(r.metros-prev.metros)+' m':(r.metros-prev.metros)+' m'):'—';
     const tr=document.createElement('tr');
-    tr.innerHTML=`<td>${r.fecha.split('-').reverse().join('/')}</td><td>${r.metros} m</td><td>${change}</td><td><button class="btn small" onclick="deleteRegistro('${user.nombre}',${i})">🗑️</button></td>`;
-    tbody.appendChild(tr);
+    tr.innerHTML=`<td>${r.fecha.split('-').reverse().join('/')}</td><td>${r.metros} m</td><td>${change}</td>
+      <td><button class="btn small" onclick="deleteRegistro('${user.nombre}',${i}, this)">🗑️</button></td>`;
+    tblBody.appendChild(tr);
   });
+  if(user.registros.length===0){message.textContent='Aún no tienes registros. ¡Agrega tu primer entrenamiento!';return;}
+  const last=user.registros[user.registros.length-1];
+  message.textContent=`Última sesión: ${last.fecha.split('-').reverse().join('/')} — ${last.metros} m`;
 }
 
-function deleteRegistro(nombre,index){
+function deleteRegistro(nombre,index, btn){
   if(!confirm("Eliminar registro?")) return;
   const users=loadUsers();
   const user=users.find(u=>u.nombre===nombre);
   user.registros.splice(index,1);
   saveUsers(users);
-  render();
+  const card=btn.closest('.card');
+  const tblBody=card.querySelector('.tblBody');
+  const message=card.querySelector('.message');
+  const chartCanvas=card.querySelector('.chartProgress');
+  renderHistory(user, tblBody, message);
+  renderChart(user, chartCanvas);
 }
 
-function renderSmallMsg(user){
-  const msg=byId('msgSmall');
-  if(user.registros.length===0){msg.textContent='Aún no tienes registros. ¡Agrega tu primer entrenamiento!';return;}
-  const last=user.registros[user.registros.length-1];
-  msg.textContent=`Última sesión: ${last.fecha.split('-').reverse().join('/')} — ${last.metros} m`;
-}
-
-function showMotivationMessage(user,metros,prev){
+function showMotivationMessage(user, metros, prev, message){
   let text='';
   if(!prev){text=`¡Buen inicio, ${user.nombre}! Has registrado ${metros} m. Sigue así.`;}
   else{
@@ -334,7 +277,7 @@ function showMotivationMessage(user,metros,prev){
     else if(diff<0)text=`🌊 Vamos ${user.nombre}, esta vez ${metros} m (falta ${prev.metros-metros} m para tu marca de ${prev.metros} m). ¡Tú puedes volver a tus ${prev.metros} m o superarlos!`;
     else text=`🔁 Gran constancia, ${user.nombre}! Repetiste ${metros} m — mantener el ritmo también cuenta.`;
   }
-  const banner=document.querySelector('.message'); if(banner){banner.textContent=text;banner.style.opacity='1';}
+  message.textContent=text;
   showToast(text);
 }
 
@@ -348,60 +291,61 @@ function showToast(text){
   t.style.background='linear-gradient(90deg,var(--azul-2),var(--azul-1))';
   t.style.color='white';
   t.style.borderRadius='10px';
-  t.style.boxShadow='0 6px 18px rgba(0,0,0,0.25)';
-  t.style.fontWeight='700';
-  t.style.zIndex='5000';
-  t.style.opacity='0';
-  t.style.transition='opacity 0.3s';
+  t.style.boxShadow='0 6px 18px rgba(0,0,0,0.3)';
+  t.style.zIndex=9999;
+  t.style.fontWeight=700;
+  t.style.fontSize='14px';
   t.textContent=text;
   document.body.appendChild(t);
-  setTimeout(()=>t.style.opacity='1',10);
-  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300)},4000);
+  setTimeout(()=>{t.style.transition='opacity 400ms';t.style.opacity='0';setTimeout(()=>t.remove(),420);},4000);
 }
 
-// --------- PANEL PERFIL ---------
-profileBtn.onclick=()=>profilePanel.classList.toggle('open');
-closeProfile.onclick=()=>profilePanel.classList.remove('open');
-saveProfile.onclick=()=>{
-  const users=loadUsers();
-  const current=getCurrent();
-  const user=users.find(u=>u.nombre===current);
-  user.nombre=profileName.value.trim()||user.nombre;
-  user.foto=profileUrl.value.trim()||user.foto;
-  saveUsers(users);
-  render();
-};
-
-// --------- EXPORT PDF ---------
-function exportPDF(user){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  const title="Club Coromac - Registro de Natación";
-  doc.setFontSize(18); doc.text(title,14,22);
-  const data=user.registros.map(r=>[r.fecha.split('-').reverse().join('/'),r.metros]);
-  doc.autoTable({head:[['Fecha','Metros']],body:data,startY:30});
-  doc.save(`${user.nombre}-registro.pdf`);
-}
-
-// --------- ELIMINAR CUENTA ---------
-function deleteAccount(nombre){
-  if(!confirm("Eliminar alumno y todos los registros?")) return;
-  let users=loadUsers();
-  users=users.filter(u=>u.nombre!==nombre);
-  saveUsers(users);
-  logout();
-}
-
-// --------- CHART JS ---------
-function renderChart(user){
-  const ctx=document.getElementById('chartProgress').getContext('2d');
+function renderChart(user, chartCanvas){
+  const ctx=chartCanvas.getContext('2d');
   const labels=user.registros.map(r=>r.fecha.split('-').reverse().join('/'));
   const data=user.registros.map(r=>r.metros);
-  new Chart(ctx,{type:'line',data:{labels, datasets:[{label:'Metros nadados', data, backgroundColor:'rgba(59,180,214,0.3)', borderColor:'#3db4d6', borderWidth:2, tension:0.3}]}, options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
+  if(chartCanvas.chartObj){chartCanvas.chartObj.destroy();}
+  chartCanvas.chartObj=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label:'Metros nadados',data,borderColor:'rgba(59,180,214,0.9)',backgroundColor:'rgba(59,180,214,0.3)',tension:0.3,fill:true}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+  });
 }
 
-// --------- INICIALIZACIÓN ---------
-render();
+// --------- AGREGAR NUEVO ALUMNO ---------
+profileBtn.onclick=()=>{
+  if(!requireProfessorAccess()) return;
+  const name=prompt("Nombre del nuevo alumno:");
+  if(!name) return;
+  let users=loadUsers();
+  if(users.find(u=>u.nombre===name)){alert("Alumno ya existe"); return;}
+  const newUser={nombre:name, registros:[]};
+  users.push(newUser);
+  saveUsers(users);
+  createAlumnoSpace(newUser);
+};
+
+// --------- PANEL PERFIL ---------
+closeProfile.onclick=()=>profilePanel.classList.remove('open');
+saveProfile.onclick=()=>{
+  const name=profileName.value.trim();
+  if(!name) return;
+  let users=loadUsers();
+  const user=users.find(u=>u.nombre===profilePhoto.dataset.nombre);
+  if(!user) return;
+  user.nombre=name;
+  user.foto=profileUrl.value.trim()||'https://via.placeholder.com/80';
+  saveUsers(users);
+  profilePhoto.src=user.foto;
+  profilePanel.classList.remove('open');
+};
+
+// --------- INICIALIZAR ---------
+(function init(){
+  if(!requireProfessorAccess()) return;
+  const users=loadUsers();
+  users.forEach(u=>createAlumnoSpace(u));
+})();
 </script>
 </body>
 </html>

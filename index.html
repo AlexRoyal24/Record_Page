@@ -86,7 +86,7 @@ th,td{padding:8px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.03)
 th{opacity:0.85;font-weight:600}
 .message{margin-top:12px;padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));font-weight:600}
 
-/* Panel de perfil */
+/* Botón Nuevo Alumno */
 #profileBtn{
   position:fixed;bottom:20px;right:20px;width:56px;height:56px;
   background:linear-gradient(135deg,var(--azul-2),var(--azul-1));
@@ -95,22 +95,8 @@ th{opacity:0.85;font-weight:600}
   font-weight:700;font-size:22px;color:white;
   cursor:pointer;z-index:1000;
 }
-#profilePanel{
-  position:fixed;bottom:-100%;left:0;width:100%;max-width:480px;
-  margin:0 auto;right:0;
-  background: rgba(0,0,0,0.85);backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
-  border-top-left-radius:18px;border-top-right-radius:18px;
-  padding:16px;
-  transition:bottom 0.3s ease;
-  color:white;z-index:999;
-}
-#profilePanel.open{bottom:0;}
-#profilePanel img{width:80px;height:80px;border-radius:50%;object-fit:cover;margin-bottom:12px;}
-#profilePanel input{margin-bottom:8px;}
-#chartContainer{margin-top:16px;background:rgba(255,255,255,0.03);padding:12px;border-radius:10px;}
 
 @media (max-width:900px){.grid{grid-template-columns:1fr}}
-@media (max-width:450px){.logo .icon{width:44px;height:44px;font-size:18px};header{flex-direction:column;align-items:flex-start;gap:8px}}
 </style>
 </head>
 <body>
@@ -123,51 +109,26 @@ th{opacity:0.85;font-weight:600}
         <p class="lead">Solo profesor • Responsive</p>
       </div>
     </div>
-    <div id="topActions"></div>
   </header>
   <main id="mainSpaces">
-    <!-- Espacios de alumnos se generarán aquí -->
+    <!-- Espacios de alumnos -->
   </main>
 </div>
 
-<!-- Botón flotante Nuevo Alumno -->
 <div id="profileBtn">➕</div>
-
-<!-- Panel de perfil -->
-<div id="profilePanel">
-  <div style="text-align:center;">
-    <img id="profilePhoto" src="https://via.placeholder.com/80" alt="Foto de perfil">
-    <input type="text" id="profileName" placeholder="Nombre">
-    <input type="url" id="profileUrl" placeholder="URL de foto (opcional)">
-    <div style="display:flex;gap:8px;justify-content:center;">
-      <button class="btn small" id="saveProfile">Guardar</button>
-      <button class="btn small" id="closeProfile">Cerrar</button>
-    </div>
-  </div>
-</div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-
 <script>
-const LS_USERS='natacion_users_v4';
 const mainSpaces=document.getElementById('mainSpaces');
-const profileBtn=document.getElementById('profileBtn');
-const profilePanel=document.getElementById('profilePanel');
-const profilePhoto=document.getElementById('profilePhoto');
-const profileName=document.getElementById('profileName');
-const profileUrl=document.getElementById('profileUrl');
-const saveProfile=document.getElementById('saveProfile');
-const closeProfile=document.getElementById('closeProfile');
-
-const PROFESOR_KEY="Club_Coromac_2025"; //Cambiar clave real
+const LS_USERS='natacion_users_v5';
+const PROFESOR_KEY="Club_Coromac_2025";
 
 function requireProfessorAccess(){
-  const key=sessionStorage.getItem('profesor_access');
-  if(key===PROFESOR_KEY) return true;
-  let attempt=prompt("Acceso solo para profesor. Ingresa clave:");
+  if(sessionStorage.getItem('profesor_access')===PROFESOR_KEY) return true;
+  const attempt=prompt("Acceso solo para profesor. Ingresa clave:");
   if(attempt===PROFESOR_KEY){sessionStorage.setItem('profesor_access',attempt); return true;}
   alert("Clave incorrecta. No puedes entrar."); return false;
 }
@@ -175,12 +136,11 @@ function requireProfessorAccess(){
 function loadUsers(){return JSON.parse(localStorage.getItem(LS_USERS)||'[]');}
 function saveUsers(u){localStorage.setItem(LS_USERS,JSON.stringify(u));}
 
-// --------- CREAR ESPACIO DE ALUMNO ---------
 function createAlumnoSpace(user){
   const card=document.createElement('section');
   card.className='card';
   card.dataset.nombre=user.nombre;
-  
+
   card.innerHTML=`
     <h3>${user.nombre}</h3>
     <form>
@@ -191,13 +151,13 @@ function createAlumnoSpace(user){
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btnAdd" type="submit">Agregar</button>
         <button class="btn small btnDeleteAlumno" type="button">Eliminar Alumno</button>
+        <button class="btn small btnPDF" type="button">Generar PDF</button>
       </div>
     </form>
     <div class="message">Tus mensajes aparecerán aquí.</div>
     <div class="history"><table><thead><tr><th>Fecha</th><th>Metros</th><th>Cambio</th><th>Eliminar</th></tr></thead><tbody class="tblBody"></tbody></table></div>
-    <div id="chartContainer"><canvas class="chartProgress"></canvas></div>
+    <div><canvas class="chartProgress"></canvas></div>
   `;
-
   mainSpaces.appendChild(card);
 
   const form=card.querySelector('form');
@@ -207,13 +167,11 @@ function createAlumnoSpace(user){
   const message=card.querySelector('.message');
   const chartCanvas=card.querySelector('.chartProgress');
 
-  // Agregar registro
   form.onsubmit=(e)=>{
     e.preventDefault();
     addRegistro(user.nombre, inpFecha.value, parseInt(inpMetros.value), message, tblBody, chartCanvas);
   };
 
-  // Eliminar alumno
   card.querySelector('.btnDeleteAlumno').onclick=()=>{
     if(!confirm('¿Eliminar alumno?')) return;
     let users=loadUsers();
@@ -221,6 +179,8 @@ function createAlumnoSpace(user){
     saveUsers(users);
     card.remove();
   };
+
+  card.querySelector('.btnPDF').onclick=()=>generatePDF(user);
 
   renderHistory(user, tblBody, message);
   renderChart(user, chartCanvas);
@@ -312,8 +272,17 @@ function renderChart(user, chartCanvas){
   });
 }
 
-// --------- AGREGAR NUEVO ALUMNO ---------
-profileBtn.onclick=()=>{
+function generatePDF(user){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.text(`Registro de ${user.nombre}`,14,14);
+  const rows=user.registros.map(r=>[r.fecha.split('-').reverse().join('/'), r.metros]);
+  doc.autoTable({head:[['Fecha','Metros']], body:rows,startY:20});
+  doc.save(`${user.nombre}_registro.pdf`);
+}
+
+// --------- BOTON NUEVO ALUMNO ---------
+document.getElementById('profileBtn').onclick=()=>{
   if(!requireProfessorAccess()) return;
   const name=prompt("Nombre del nuevo alumno:");
   if(!name) return;
@@ -323,21 +292,6 @@ profileBtn.onclick=()=>{
   users.push(newUser);
   saveUsers(users);
   createAlumnoSpace(newUser);
-};
-
-// --------- PANEL PERFIL ---------
-closeProfile.onclick=()=>profilePanel.classList.remove('open');
-saveProfile.onclick=()=>{
-  const name=profileName.value.trim();
-  if(!name) return;
-  let users=loadUsers();
-  const user=users.find(u=>u.nombre===profilePhoto.dataset.nombre);
-  if(!user) return;
-  user.nombre=name;
-  user.foto=profileUrl.value.trim()||'https://via.placeholder.com/80';
-  saveUsers(users);
-  profilePhoto.src=user.foto;
-  profilePanel.classList.remove('open');
 };
 
 // --------- INICIALIZAR ---------

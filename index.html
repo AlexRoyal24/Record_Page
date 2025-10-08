@@ -98,7 +98,7 @@ textarea{width:100%;resize:none;margin-top:6px;}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const LS_USERS='natacion_users_v4';
+const LS_USERS='natacion_users_v5';
 const left=document.getElementById('left');
 
 function requireProfessorAccess(){
@@ -167,19 +167,20 @@ function renderAlumno(u, container, idx){
       </div>
     </form>
     <div id="hist_${idx}" style="margin-top:8px;"></div>
-    <h3>Notas</h3>
-    <textarea id="notas_${idx}" placeholder="Escribe aquí las observaciones o notas del alumno...">${u.notas||""}</textarea>
+
+    <!-- Cuadro de texto para instrucciones o notas de futuras clases -->
+    <h3>Instrucciones / Notas</h3>
+    <textarea id="notas_${idx}" placeholder="Escribe aquí las instrucciones para futuras clases...">${u.notas||""}</textarea>
+
     <div id="chartContainer_${idx}" style="margin-top:10px;">
       <canvas id="chart_${idx}"></canvas>
     </div>
   `;
 
-  document.getElementById(`form_${idx}`).onsubmit = (e)=>{
-    e.preventDefault();
-    addRegistroAlumno(u, idx);
-  };
-  document.getElementById(`borrar_${idx}`).onclick = ()=>{deleteAlumno(u.nombre);};
+  document.getElementById(`form_${idx}`).onsubmit = (e)=>{ e.preventDefault(); addRegistroAlumno(u, idx); };
+  document.getElementById(`borrar_${idx}`).onclick = ()=>{ deleteAlumno(u.nombre); };
 
+  // Guardar notas automáticamente
   const notasTextarea = document.getElementById(`notas_${idx}`);
   notasTextarea.addEventListener('input', ()=>{ u.notas = notasTextarea.value; saveUsers(loadUsers()); });
 
@@ -223,6 +224,7 @@ function deleteAlumno(name){
   render();
 }
 
+// Inicializar
 (function init(){const users=loadUsers();if(!Array.isArray(users)) saveUsers([]);render();})();
 </script>
 </body>

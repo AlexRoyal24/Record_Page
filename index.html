@@ -191,10 +191,19 @@ function renderAlumno(u, container, idx){
 function addRegistroAlumno(u, idx){
   const fecha = document.getElementById(`fecha_${idx}`).value;
   const metros = parseInt(document.getElementById(`metros_${idx}`).value);
-  if(!fecha||isNaN(metros)){alert("Rellena fecha y metros"); return;}
+  if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros"); return; }
+
+  // Agregar registro al alumno
   u.registros.push({fecha, metros});
   saveUsers(loadUsers());
-  render();
+
+  // Actualizar historial y gráfica sin cerrar la carpeta
+  renderHistorial(u, idx);
+  renderChartAlumno(u, idx);
+
+  // Limpiar inputs
+  document.getElementById(`fecha_${idx}`).value = "";
+  document.getElementById(`metros_${idx}`).value = "";
 }
 
 function renderHistorial(u, idx){

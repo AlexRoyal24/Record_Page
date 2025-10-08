@@ -16,12 +16,11 @@
   #nombreAlumno, #registroContainer {
     margin-top: 20px;
   }
-  input, button, textarea {
+  input, button {
     padding: 10px;
     border-radius: 10px;
     border: none;
     margin: 5px;
-    font-family: inherit;
   }
   button {
     background-color: #004aad;
@@ -55,11 +54,6 @@
     height: 60px;
     cursor: pointer;
   }
-  textarea {
-    width: 90%;
-    height: 70px;
-    resize: none;
-  }
 </style>
 </head>
 <body>
@@ -87,13 +81,10 @@
       <h2>${nombre}</h2>
       <button class="abrir">Abrir</button>
       <div class="registros oculto">
-        <input type="number" placeholder="Distancia (m)">
-        <input type="number" placeholder="Tiempo (s)">
+        <input type="text" placeholder="Distancia (m)">
+        <input type="text" placeholder="Tiempo (s)">
         <button class="agregarRegistro">Agregar registro</button>
         <div class="listaRegistros"></div>
-
-        <h3>Notas</h3>
-        <textarea placeholder="Escribe aquí las observaciones o notas del alumno..."></textarea>
       </div>
     `;
 
@@ -102,7 +93,6 @@
     const agregarRegistroBtn = alumnoDiv.querySelector(".agregarRegistro");
     const listaRegistros = alumnoDiv.querySelector(".listaRegistros");
 
-    // Al abrir, cerrar los demás espacios
     abrirBtn.addEventListener("click", () => {
       document.querySelectorAll(".registros").forEach(r => {
         if (r !== registrosDiv) r.classList.add("oculto");
@@ -110,18 +100,14 @@
       registrosDiv.classList.toggle("oculto");
     });
 
-    // Agregar registros sin recargar ni fallar
-    agregarRegistroBtn.addEventListener("click", (e) => {
-      e.preventDefault(); // evita recarga o salida del espacio
+    agregarRegistroBtn.addEventListener("click", () => {
       const inputs = registrosDiv.querySelectorAll("input");
       const distancia = inputs[0].value.trim();
       const tiempo = inputs[1].value.trim();
-
       if (distancia && tiempo) {
         const p = document.createElement("p");
-        p.textContent = `🏊‍♂️ Distancia: ${distancia}m - Tiempo: ${tiempo}s`;
+        p.textContent = `Distancia: ${distancia}m - Tiempo: ${tiempo}s`;
         listaRegistros.appendChild(p);
-
         inputs[0].value = "";
         inputs[1].value = "";
       }
@@ -130,7 +116,6 @@
     registroContainer.appendChild(alumnoDiv);
   }
 
-  // Crear alumno nuevo
   agregarAlumnoBtn.addEventListener("click", () => {
     const nombre = document.getElementById("nuevoNombre").value.trim();
     if (nombre) {
@@ -139,7 +124,6 @@
     }
   });
 
-  // Botón flotante enfoca el campo para agregar alumno
   nuevoAlumnoBtn.addEventListener("click", () => {
     document.getElementById("nuevoNombre").focus();
   });

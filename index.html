@@ -1,133 +1,255 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Club Coromac - Registro de Natación</title>
 <style>
-  body {
-    background: linear-gradient(135deg, #007bff, #00c6ff);
-    font-family: Arial, sans-serif;
-    margin: 0;
-    color: #fff;
-    text-align: center;
-  }
-  h1 { margin-top: 20px; }
-  #nombreAlumno, #registroContainer {
-    margin-top: 20px;
-  }
-  input, button {
-    padding: 10px;
-    border-radius: 10px;
-    border: none;
-    margin: 5px;
-  }
-  button {
-    background-color: #004aad;
-    color: #fff;
-    cursor: pointer;
-  }
-  .alumno {
-    background: rgba(255,255,255,0.2);
-    border-radius: 15px;
-    padding: 10px;
-    margin: 10px auto;
-    width: 80%;
-  }
-  .oculto { display: none; }
-  .registros {
-    background: rgba(255,255,255,0.1);
-    padding: 10px;
-    border-radius: 10px;
-    margin-top: 10px;
-  }
-  .nuevoAlumno {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    background: #00c6ff;
-    border: none;
-    color: #fff;
-    font-size: 24px;
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    cursor: pointer;
-  }
+:root{
+  --azul-1:#0b78a6;
+  --azul-2:#3db4d6;
+  --blanco:#fff;
+  --trans:0.18s;
+  --card-radius:14px;
+  --max-width:980px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:Inter,sans-serif;
+  min-height:100vh;
+  background: radial-gradient(ellipse at 10% 10%, rgba(255,255,255,0.04), transparent 10%), linear-gradient(180deg,var(--azul-1),#022f3b);
+  color:var(--blanco);
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+  padding:20px;
+}
+.app{
+  width:100%;
+  max-width:var(--max-width);
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  border-radius:18px;
+  padding:18px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+header{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:12px;
+}
+.logo{
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+.logo .icon{
+  width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--azul-2),var(--azul-1));
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;color:rgba(255,255,255,0.95);
+}
+h1{font-size:20px;margin:0}
+p.lead{font-size:13px;color:rgba(255,255,255,0.85)}
+.card{
+  background: rgba(255,255,255,0.04);
+  padding:14px;
+  border-radius:var(--card-radius);
+  box-shadow:0 6px 18px rgba(2,18,24,0.25);
+  margin-bottom:12px;
+}
+input, button, textarea{padding:10px 12px;border-radius:10px;border:0;outline:none;font-size:14px}
+input::placeholder, textarea::placeholder{color:rgba(255,255,255,0.6)}
+.btn{
+  background:linear-gradient(90deg,var(--azul-2),var(--azul-1));
+  color:var(--blanco);
+  cursor:pointer;
+  border:none;
+  border-radius:10px;
+  font-weight:600;
+  transition:transform var(--trans), box-shadow var(--trans);
+}
+.btn:active{transform:translateY(1px)}
+.small{font-size:13px;padding:8px 10px}
+.muted{color:rgba(255,255,255,0.7);font-size:13px}
+.card-content{display:none;margin-top:10px;}
+.card-content.open{display:block;}
+ul{padding-left:18px;text-align:left;}
+.nuevoAlumno{
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background:linear-gradient(90deg,var(--azul-2),var(--azul-1));
+  border:none;
+  color:#fff;
+  font-size:24px;
+  border-radius:50%;
+  width:60px;
+  height:60px;
+  cursor:pointer;
+}
+textarea{
+  width:100%;
+  resize:none;
+  margin-top:8px;
+  font-family:inherit;
+}
 </style>
 </head>
 <body>
-
-<h1>Club Coromac - Registro de Natación</h1>
-
-<div id="nombreAlumno">
-  <input type="text" id="nuevoNombre" placeholder="Nombre del alumno">
-  <button id="agregarAlumno">Agregar alumno</button>
+<div class="app">
+  <header>
+    <div class="logo">
+      <div class="icon">C</div>
+      <div>
+        <h1>Club Coromac — Registro de Natación</h1>
+        <p class="lead">Solo profesor • Responsive</p>
+      </div>
+    </div>
+    <div id="topActions"></div>
+  </header>
+  <main>
+    <section id="left" class="card"></section>
+  </main>
+  <button class="nuevoAlumno" id="btnAgregarAlumno">+</button>
 </div>
 
-<div id="registroContainer"></div>
-
-<button class="nuevoAlumno" id="nuevoAlumno">+</button>
-
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-  const registroContainer = document.getElementById("registroContainer");
-  const agregarAlumnoBtn = document.getElementById("agregarAlumno");
-  const nuevoAlumnoBtn = document.getElementById("nuevoAlumno");
+const LS_USERS='natacion_users_v4';
+const left=document.getElementById('left');
+const btnAgregarAlumno=document.getElementById('btnAgregarAlumno');
 
-  function crearAlumno(nombre) {
-    const alumnoDiv = document.createElement("div");
-    alumnoDiv.classList.add("alumno");
-    alumnoDiv.innerHTML = `
-      <h2>${nombre}</h2>
-      <button class="abrir">Abrir</button>
-      <div class="registros oculto">
-        <input type="text" placeholder="Distancia (m)">
-        <input type="text" placeholder="Tiempo (s)">
-        <button class="agregarRegistro">Agregar registro</button>
-        <div class="listaRegistros"></div>
+function requireProfessorAccess(){
+  const key=sessionStorage.getItem('profesor_access');
+  if(key==="profesor123") return true;
+  let attempt=prompt("Acceso solo para profesor. Ingresa clave:");
+  if(attempt==="profesor123"){sessionStorage.setItem('profesor_access',attempt); return true;}
+  alert("Clave incorrecta. No puedes entrar."); return false;
+}
+
+function loadUsers(){return JSON.parse(localStorage.getItem(LS_USERS)||'[]');}
+function saveUsers(u){localStorage.setItem(LS_USERS,JSON.stringify(u));}
+
+function render(){
+  if(!requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
+
+  const users = loadUsers();
+  left.innerHTML = "<h3>Alumnos</h3><div id='listaAlumnos'></div>";
+  const listaAlumnos = document.getElementById('listaAlumnos');
+
+  users.forEach((u, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center; cursor:pointer;">
+        <strong>${u.nombre}</strong>
+        <button class="btn small" id="btnAbrir_${idx}">Abrir</button>
       </div>
+      <div id="contenido_${idx}" class="card-content"></div>
     `;
+    listaAlumnos.appendChild(card);
 
-    const abrirBtn = alumnoDiv.querySelector(".abrir");
-    const registrosDiv = alumnoDiv.querySelector(".registros");
-    const agregarRegistroBtn = alumnoDiv.querySelector(".agregarRegistro");
-    const listaRegistros = alumnoDiv.querySelector(".listaRegistros");
+    const btnAbrir = document.getElementById(`btnAbrir_${idx}`);
+    const contenido = document.getElementById(`contenido_${idx}`);
 
-    abrirBtn.addEventListener("click", () => {
-      document.querySelectorAll(".registros").forEach(r => {
-        if (r !== registrosDiv) r.classList.add("oculto");
+    btnAbrir.onclick = () => {
+      users.forEach((_, i) => {
+        const c = document.getElementById(`contenido_${i}`);
+        if(c && i!==idx) c.classList.remove('open');
       });
-      registrosDiv.classList.toggle("oculto");
-    });
+      contenido.classList.toggle('open');
+      if(contenido.classList.contains('open')) renderAlumno(u, contenido, idx);
+    };
+  });
+}
 
-    agregarRegistroBtn.addEventListener("click", () => {
-      const inputs = registrosDiv.querySelectorAll("input");
-      const distancia = inputs[0].value.trim();
-      const tiempo = inputs[1].value.trim();
-      if (distancia && tiempo) {
-        const p = document.createElement("p");
-        p.textContent = `Distancia: ${distancia}m - Tiempo: ${tiempo}s`;
-        listaRegistros.appendChild(p);
-        inputs[0].value = "";
-        inputs[1].value = "";
-      }
-    });
+function renderAlumno(u, container, idx){
+  container.innerHTML = `
+    <form id="form_${idx}">
+      <label>Fecha</label>
+      <input type="date" id="fecha_${idx}" required>
+      <label>Metros nadados</label>
+      <input type="number" id="metros_${idx}" placeholder="Ej: 1500" required>
+      <div style="margin-top:6px; display:flex; gap:8px;">
+        <button class="btn small" type="submit">Agregar registro</button>
+        <button class="btn small" type="button" id="borrar_${idx}">Eliminar alumno</button>
+      </div>
+    </form>
+    <h3>Notas</h3>
+    <textarea id="nota_${idx}" placeholder="Escribe aquí las observaciones o notas del alumno...">${u.nota||''}</textarea>
+    <div id="hist_${idx}" style="margin-top:8px;"></div>
+    <div id="chartContainer_${idx}" style="margin-top:10px;">
+      <canvas id="chart_${idx}"></canvas>
+    </div>
+  `;
 
-    registroContainer.appendChild(alumnoDiv);
-  }
+  document.getElementById(`form_${idx}`).onsubmit=(e)=>{
+    e.preventDefault();
+    addRegistroAlumno(u, idx);
+  };
+  document.getElementById(`borrar_${idx}`).onclick=()=>{ deleteAlumno(u.nombre); };
 
-  agregarAlumnoBtn.addEventListener("click", () => {
-    const nombre = document.getElementById("nuevoNombre").value.trim();
-    if (nombre) {
-      crearAlumno(nombre);
-      document.getElementById("nuevoNombre").value = "";
-    }
+  const nota = document.getElementById(`nota_${idx}`);
+  nota.addEventListener('input', ()=>{
+    u.nota=nota.value;
+    saveUsers(loadUsers());
   });
 
-  nuevoAlumnoBtn.addEventListener("click", () => {
-    document.getElementById("nuevoNombre").focus();
+  renderHistorial(u, idx);
+  renderChartAlumno(u, idx);
+}
+
+function addRegistroAlumno(u, idx){
+  const fecha = document.getElementById(`fecha_${idx}`).value;
+  const metros = parseInt(document.getElementById(`metros_${idx}`).value);
+  if(!fecha||isNaN(metros)){alert("Rellena fecha y metros"); return;}
+  u.registros = u.registros||[];
+  u.registros.push({fecha, metros});
+  saveUsers(loadUsers());
+  render();
+}
+
+function renderHistorial(u, idx){
+  const hist = document.getElementById(`hist_${idx}`);
+  hist.innerHTML = "<ul>" + (u.registros||[]).map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
+}
+
+function renderChartAlumno(u, idx){
+  const canvas = document.getElementById(`chart_${idx}`);
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const labels = (u.registros||[]).map(r=>r.fecha.split('-').reverse().join('/'));
+  const data = (u.registros||[]).map(r=>r.metros);
+  if(window[`chartObj_${idx}`]) window[`chartObj_${idx}`].destroy();
+  window[`chartObj_${idx}`] = new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{label:'Metros nadados',data,borderColor:'rgba(59,180,214,0.9)',backgroundColor:'rgba(59,180,214,0.3)',tension:0.3,fill:true}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
   });
+}
+
+function deleteAlumno(name){
+  if(!confirm('¿Eliminar nadador? Esta acción no se puede deshacer.')) return;
+  let users = loadUsers();
+  users = users.filter(u=>u.nombre!==name);
+  saveUsers(users);
+  render();
+}
+
+btnAgregarAlumno.onclick=()=>{
+  const nombre=prompt("Nombre del nuevo alumno:");
+  if(!nombre) return;
+  const users=loadUsers();
+  if(users.find(x=>x.nombre===nombre)){alert("Ya existe"); return;}
+  users.push({nombre,registros:[],nota:''});
+  saveUsers(users);
+  render();
+};
+
+// Inicializar
+(function init(){const users=loadUsers();if(!Array.isArray(users)) saveUsers([]);render();})();
 </script>
-
 </body>
 </html>

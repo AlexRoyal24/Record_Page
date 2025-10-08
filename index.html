@@ -1,21 +1,18 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Club Coromac - Registro de Natación</title>
 <style>
   body {
     background: linear-gradient(135deg, #007bff, #00c6ff);
     font-family: Arial, sans-serif;
-    margin: 0;
     color: #fff;
     text-align: center;
+    margin: 0;
   }
   h1 { margin-top: 20px; }
-  #nombreAlumno, #registroContainer {
-    margin-top: 20px;
-  }
   input, button, textarea {
     padding: 10px;
     border-radius: 10px;
@@ -29,11 +26,12 @@
     cursor: pointer;
   }
   .alumno {
-    background: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.15);
     border-radius: 15px;
-    padding: 10px;
-    margin: 10px auto;
-    width: 80%;
+    padding: 15px;
+    margin: 15px auto;
+    width: 85%;
+    text-align: left;
   }
   .oculto { display: none; }
   .registros {
@@ -49,16 +47,25 @@
     background: #00c6ff;
     border: none;
     color: #fff;
-    font-size: 24px;
+    font-size: 26px;
     border-radius: 50%;
     width: 60px;
     height: 60px;
     cursor: pointer;
   }
   textarea {
-    width: 90%;
-    height: 70px;
+    width: 100%;
+    height: 80px;
     resize: none;
+    border-radius: 10px;
+    border: none;
+    padding: 10px;
+  }
+  .notaGuardada {
+    font-style: italic;
+    color: #fffa;
+    font-size: 14px;
+    margin-top: 5px;
   }
 </style>
 </head>
@@ -80,48 +87,78 @@
   const agregarAlumnoBtn = document.getElementById("agregarAlumno");
   const nuevoAlumnoBtn = document.getElementById("nuevoAlumno");
 
+  let alumnos = JSON.parse(localStorage.getItem("alumnosNatacion") || "[]");
+
+  function guardarDatos() {
+    localStorage.setItem("alumnosNatacion", JSON.stringify(alumnos));
+  }
+
   function crearAlumno(nombre) {
-    const alumnoDiv = document.createElement("div");
-    alumnoDiv.classList.add("alumno");
-    alumnoDiv.innerHTML = `
-      <h2>${nombre}</h2>
-      <button class="abrir">Abrir</button>
-      <div class="registros oculto">
-        <input type="text" placeholder="Distancia (m)">
-        <input type="text" placeholder="Tiempo (s)">
-        <button class="agregarRegistro">Agregar registro</button>
-        <div class="listaRegistros"></div>
-        <h3>Notas</h3>
-        <textarea placeholder="Escribe aquí las observaciones o notas del alumno..."></textarea>
-      </div>
-    `;
+    const alumno = { nombre, registros: [], notas: "" };
+    alumnos.push(alumno);
+    guardarDatos();
+    render();
+  }
 
-    const abrirBtn = alumnoDiv.querySelector(".abrir");
-    const registrosDiv = alumnoDiv.querySelector(".registros");
-    const agregarRegistroBtn = alumnoDiv.querySelector(".agregarRegistro");
-    const listaRegistros = alumnoDiv.querySelector(".listaRegistros");
+  function render() {
+    registroContainer.innerHTML = "";
+    alumnos.forEach((alumno, index) => {
+      const alumnoDiv = document.createElement("div");
+      alumnoDiv.classList.add("alumno");
+      alumnoDiv.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <h2>${alumno.nombre}</h2>
+          <button class="abrir">Abrir</button>
+        </div>
+        <div class="registros oculto">
+          <input type="text" class="distancia" placeholder="Distancia (m)">
+          <input type="text" class="tiempo" placeholder="Tiempo (s)">
+          <button class="agregarRegistro">Agregar registro</button>
+          <div class="listaRegistros"></div>
+          <h3>Notas</h3>
+          <textarea class="notaTexto" placeholder="Escribe aquí las observaciones del alumno...">${alumno.notas || ""}</textarea>
+          <button class="guardarNota">Guardar nota</button>
+          <p class="notaGuardada oculto">✅ Nota guardada</p>
+        </div>
+      `;
 
-    abrirBtn.addEventListener("click", () => {
-      document.querySelectorAll(".registros").forEach(r => {
-        if (r !== registrosDiv) r.classList.add("oculto");
+      const abrirBtn = alumnoDiv.querySelector(".abrir");
+      const registrosDiv = alumnoDiv.querySelector(".registros");
+      const agregarRegistroBtn = alumnoDiv.querySelector(".agregarRegistro");
+      const listaRegistros = alumnoDiv.querySelector(".listaRegistros");
+      const guardarNotaBtn = alumnoDiv.querySelector(".guardarNota");
+      const notaTexto = alumnoDiv.querySelector(".notaTexto");
+      const notaGuardada = alumnoDiv.querySelector(".notaGuardada");
+
+      // Mostrar registros guardados
+      listaRegistros.innerHTML = alumno.registros.map(r => `<p>📅 ${r.fecha} — ${r.distancia}m en ${r.tiempo}s</p>`).join("");
+
+      abrirBtn.addEventListener("click", () => {
+        document.querySelectorAll(".registros").forEach(r => {
+          if (r !== registrosDiv) r.classList.add("oculto");
+        });
+        registrosDiv.classList.toggle("oculto");
       });
-      registrosDiv.classList.toggle("oculto");
-    });
 
-    agregarRegistroBtn.addEventListener("click", () => {
-      const inputs = registrosDiv.querySelectorAll("input");
-      const distancia = inputs[0].value.trim();
-      const tiempo = inputs[1].value.trim();
-      if (distancia && tiempo) {
-        const p = document.createElement("p");
-        p.textContent = `Distancia: ${distancia}m - Tiempo: ${tiempo}s`;
-        listaRegistros.appendChild(p);
-        inputs[0].value = "";
-        inputs[1].value = "";
-      }
-    });
+      agregarRegistroBtn.addEventListener("click", () => {
+        const distancia = alumnoDiv.querySelector(".distancia").value.trim();
+        const tiempo = alumnoDiv.querySelector(".tiempo").value.trim();
+        if (distancia && tiempo) {
+          alumno.registros.push({ fecha: new Date().toLocaleDateString(), distancia, tiempo });
+          guardarDatos();
+          render();
+        }
+      });
 
-    registroContainer.appendChild(alumnoDiv);
+      guardarNotaBtn.addEventListener("click", () => {
+        alumno.notas = notaTexto.value.trim();
+        guardarDatos();
+        notaGuardada.classList.remove("oculto");
+        setTimeout(() => notaGuardada.classList.add("oculto"), 1500);
+      });
+
+      registroContainer.appendChild(alumnoDiv);
+    });
   }
 
   agregarAlumnoBtn.addEventListener("click", () => {
@@ -135,6 +172,8 @@
   nuevoAlumnoBtn.addEventListener("click", () => {
     document.getElementById("nuevoNombre").focus();
   });
+
+  render();
 </script>
 
 </body>

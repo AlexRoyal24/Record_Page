@@ -21,7 +21,7 @@ body{
   color:var(--blanco);
   display:flex;
   justify-content:center;
-  align-items:flex-start;
+  align-items:center;
   padding:20px;
 }
 .app{
@@ -75,26 +75,8 @@ input::placeholder, textarea::placeholder{color:rgba(255,255,255,0.6)}
 .muted{color:rgba(255,255,255,0.7);font-size:13px}
 .card-content{display:none;margin-top:10px;}
 .card-content.open{display:block;}
-ul{padding-left:18px;text-align:left;}
-.nuevoAlumno{
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background:linear-gradient(90deg,var(--azul-2),var(--azul-1));
-  border:none;
-  color:#fff;
-  font-size:24px;
-  border-radius:50%;
-  width:60px;
-  height:60px;
-  cursor:pointer;
-}
-textarea{
-  width:100%;
-  resize:none;
-  margin-top:8px;
-  font-family:inherit;
-}
+ul{padding-left:18px;}
+textarea{width:100%;resize:none;margin-top:6px;}
 </style>
 </head>
 <body>
@@ -112,14 +94,12 @@ textarea{
   <main>
     <section id="left" class="card"></section>
   </main>
-  <button class="nuevoAlumno" id="btnAgregarAlumno">+</button>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 const LS_USERS='natacion_users_v4';
 const left=document.getElementById('left');
-const btnAgregarAlumno=document.getElementById('btnAgregarAlumno');
 
 function requireProfessorAccess(){
   const key=sessionStorage.getItem('profesor_access');
@@ -132,12 +112,13 @@ function requireProfessorAccess(){
 function loadUsers(){return JSON.parse(localStorage.getItem(LS_USERS)||'[]');}
 function saveUsers(u){localStorage.setItem(LS_USERS,JSON.stringify(u));}
 
-function render(){
+function render() {
   if(!requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
 
   const users = loadUsers();
-  left.innerHTML = "<h3>Alumnos</h3><div id='listaAlumnos'></div>";
+  left.innerHTML = "<h3>Alumnos</h3><div id='listaAlumnos'></div><button class='btn small' id='btnNuevoAlumno'>+ Nuevo Alumno</button>";
   const listaAlumnos = document.getElementById('listaAlumnos');
+  listaAlumnos.innerHTML = "";
 
   users.forEach((u, idx) => {
     const card = document.createElement('div');
@@ -153,7 +134,6 @@ function render(){
 
     const btnAbrir = document.getElementById(`btnAbrir_${idx}`);
     const contenido = document.getElementById(`contenido_${idx}`);
-
     btnAbrir.onclick = () => {
       users.forEach((_, i) => {
         const c = document.getElementById(`contenido_${i}`);
@@ -163,6 +143,15 @@ function render(){
       if(contenido.classList.contains('open')) renderAlumno(u, contenido, idx);
     };
   });
+
+  document.getElementById('btnNuevoAlumno').onclick = () => {
+    const nombre = prompt("Nombre del nuevo alumno:");
+    if(!nombre) return;
+    if(users.find(x=>x.nombre===nombre)){alert("Ya existe"); return;}
+    users.push({nombre, registros:[], notas:""});
+    saveUsers(users);
+    render();
+  };
 }
 
 function renderAlumno(u, container, idx){
@@ -177,25 +166,22 @@ function renderAlumno(u, container, idx){
         <button class="btn small" type="button" id="borrar_${idx}">Eliminar alumno</button>
       </div>
     </form>
-    <h3>Notas</h3>
-    <textarea id="nota_${idx}" placeholder="Escribe aquí las observaciones o notas del alumno...">${u.nota||''}</textarea>
     <div id="hist_${idx}" style="margin-top:8px;"></div>
+    <h3>Notas</h3>
+    <textarea id="notas_${idx}" placeholder="Escribe aquí las observaciones o notas del alumno...">${u.notas||""}</textarea>
     <div id="chartContainer_${idx}" style="margin-top:10px;">
       <canvas id="chart_${idx}"></canvas>
     </div>
   `;
 
-  document.getElementById(`form_${idx}`).onsubmit=(e)=>{
+  document.getElementById(`form_${idx}`).onsubmit = (e)=>{
     e.preventDefault();
     addRegistroAlumno(u, idx);
   };
-  document.getElementById(`borrar_${idx}`).onclick=()=>{ deleteAlumno(u.nombre); };
+  document.getElementById(`borrar_${idx}`).onclick = ()=>{deleteAlumno(u.nombre);};
 
-  const nota = document.getElementById(`nota_${idx}`);
-  nota.addEventListener('input', ()=>{
-    u.nota=nota.value;
-    saveUsers(loadUsers());
-  });
+  const notasTextarea = document.getElementById(`notas_${idx}`);
+  notasTextarea.addEventListener('input', ()=>{ u.notas = notasTextarea.value; saveUsers(loadUsers()); });
 
   renderHistorial(u, idx);
   renderChartAlumno(u, idx);
@@ -205,7 +191,6 @@ function addRegistroAlumno(u, idx){
   const fecha = document.getElementById(`fecha_${idx}`).value;
   const metros = parseInt(document.getElementById(`metros_${idx}`).value);
   if(!fecha||isNaN(metros)){alert("Rellena fecha y metros"); return;}
-  u.registros = u.registros||[];
   u.registros.push({fecha, metros});
   saveUsers(loadUsers());
   render();
@@ -213,15 +198,15 @@ function addRegistroAlumno(u, idx){
 
 function renderHistorial(u, idx){
   const hist = document.getElementById(`hist_${idx}`);
-  hist.innerHTML = "<ul>" + (u.registros||[]).map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
+  hist.innerHTML = "<ul>" + u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
 }
 
 function renderChartAlumno(u, idx){
   const canvas = document.getElementById(`chart_${idx}`);
   if(!canvas) return;
   const ctx = canvas.getContext('2d');
-  const labels = (u.registros||[]).map(r=>r.fecha.split('-').reverse().join('/'));
-  const data = (u.registros||[]).map(r=>r.metros);
+  const labels = u.registros.map(r=>r.fecha.split('-').reverse().join('/'));
+  const data = u.registros.map(r=>r.metros);
   if(window[`chartObj_${idx}`]) window[`chartObj_${idx}`].destroy();
   window[`chartObj_${idx}`] = new Chart(ctx,{
     type:'line',
@@ -238,17 +223,6 @@ function deleteAlumno(name){
   render();
 }
 
-btnAgregarAlumno.onclick=()=>{
-  const nombre=prompt("Nombre del nuevo alumno:");
-  if(!nombre) return;
-  const users=loadUsers();
-  if(users.find(x=>x.nombre===nombre)){alert("Ya existe"); return;}
-  users.push({nombre,registros:[],nota:''});
-  saveUsers(users);
-  render();
-};
-
-// Inicializar
 (function init(){const users=loadUsers();if(!Array.isArray(users)) saveUsers([]);render();})();
 </script>
 </body>

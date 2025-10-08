@@ -1,343 +1,133 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Club Coromac - Registro de Natación</title>
 <style>
-:root{
-  --azul-1:#0b78a6;
-  --azul-2:#3db4d6;
-  --blanco:#fff;
-  --trans:0.18s;
-  --card-radius:14px;
-  --max-width:980px;
-}
-*{box-sizing:border-box;margin:0;padding:0;}
-body{
-  font-family:Inter,sans-serif;
-  min-height:100vh;
-  background: radial-gradient(ellipse at 10% 10%, rgba(255,255,255,0.04), transparent 10%), linear-gradient(180deg,var(--azul-1),#022f3b);
-  color:var(--blanco);
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  padding:20px;
-}
-.app{
-  width:100%;
-  max-width:var(--max-width);
-  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
-  border-radius:18px;
-  padding:18px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.4);
-  -webkit-backdrop-filter: blur(6px);
-  backdrop-filter: blur(6px);
-}
-header{
-  display:flex;
-  gap:12px;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:12px;
-}
-.logo{
-  display:flex;
-  gap:12px;
-  align-items:center;
-}
-.logo .icon{
-  width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--azul-2),var(--azul-1));
-  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;color:rgba(255,255,255,0.95);
-}
-h1{font-size:20px;margin:0}
-p.lead{font-size:13px;color:rgba(255,255,255,0.85)}
-.card{
-  background: rgba(255,255,255,0.04);
-  padding:14px;
-  border-radius:var(--card-radius);
-  box-shadow:0 6px 18px rgba(2,18,24,0.25);
-  margin-bottom:12px;
-}
-input, button{padding:10px 12px;border-radius:10px;border:0;outline:none;font-size:14px}
-input::placeholder{color:rgba(255,255,255,0.6)}
-.btn{
-  background:linear-gradient(90deg,var(--azul-2),var(--azul-1));
-  color:var(--blanco);
-  cursor:pointer;
-  border:none;
-  border-radius:10px;
-  font-weight:600;
-  transition:transform var(--trans), box-shadow var(--trans);
-}
-.btn:active{transform:translateY(1px)}
-.small{font-size:13px;padding:8px 10px}
-.muted{color:rgba(255,255,255,0.7);font-size:13px}
-.card-content{display:none;margin-top:10px;}
-.card-content.open{display:block;}
-ul{padding-left:18px;}
-.empty-msg{color:rgba(255,255,255,0.65);font-size:13px;margin-top:8px}
+  body {
+    background: linear-gradient(135deg, #007bff, #00c6ff);
+    font-family: Arial, sans-serif;
+    margin: 0;
+    color: #fff;
+    text-align: center;
+  }
+  h1 { margin-top: 20px; }
+  #nombreAlumno, #registroContainer {
+    margin-top: 20px;
+  }
+  input, button {
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    margin: 5px;
+  }
+  button {
+    background-color: #004aad;
+    color: #fff;
+    cursor: pointer;
+  }
+  .alumno {
+    background: rgba(255,255,255,0.2);
+    border-radius: 15px;
+    padding: 10px;
+    margin: 10px auto;
+    width: 80%;
+  }
+  .oculto { display: none; }
+  .registros {
+    background: rgba(255,255,255,0.1);
+    padding: 10px;
+    border-radius: 10px;
+    margin-top: 10px;
+  }
+  .nuevoAlumno {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #00c6ff;
+    border: none;
+    color: #fff;
+    font-size: 24px;
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="logo">
-      <div class="icon">C</div>
-      <div>
-        <h1>Club Coromac — Registro de Natación</h1>
-        <p class="lead">Solo profesor • Responsive</p>
-      </div>
-    </div>
-    <div id="topActions"></div>
-  </header>
-  <main>
-    <section id="left" class="card"></section>
-  </main>
+
+<h1>Club Coromac - Registro de Natación</h1>
+
+<div id="nombreAlumno">
+  <input type="text" id="nuevoNombre" placeholder="Nombre del alumno">
+  <button id="agregarAlumno">Agregar alumno</button>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<div id="registroContainer"></div>
+
+<button class="nuevoAlumno" id="nuevoAlumno">+</button>
+
 <script>
-/* -------------------------
-   Config & storage helpers
-   ------------------------- */
-const LS_USERS = 'natacion_users_v3';
-const left = document.getElementById('left');
+  const registroContainer = document.getElementById("registroContainer");
+  const agregarAlumnoBtn = document.getElementById("agregarAlumno");
+  const nuevoAlumnoBtn = document.getElementById("nuevoAlumno");
 
-function requireProfessorAccess(){
-  const key = sessionStorage.getItem('profesor_access');
-  if(key === "profesor123") return true; // cambiar clave en producción
-  const attempt = prompt("Acceso solo para profesor. Ingresa clave:");
-  if(attempt === "profesor123"){ sessionStorage.setItem('profesor_access', attempt); return true; }
-  alert("Clave incorrecta. No puedes entrar.");
-  return false;
-}
-
-function loadUsers(){ return JSON.parse(localStorage.getItem(LS_USERS) || '[]'); }
-function saveUsers(users){ localStorage.setItem(LS_USERS, JSON.stringify(users)); }
-
-/* -------------------------
-   Render principal
-   ------------------------- */
-function render(){
-  if(!requireProfessorAccess()){ left.innerHTML = '<div class="empty-msg">Acceso denegado</div>'; return; }
-
-  const users = loadUsers();
-  left.innerHTML = `
-    <h3>Alumnos</h3>
-    <div id="listaAlumnos"></div>
-    <div style="margin-top:10px"><button class="btn small" id="btnNuevoAlumno">+ Nuevo Alumno</button></div>
-  `;
-  const listaAlumnos = document.getElementById('listaAlumnos');
-  listaAlumnos.innerHTML = '';
-
-  if(users.length === 0){
-    listaAlumnos.innerHTML = '<div class="empty-msg">No hay alumnos aún. Pulsa + Nuevo Alumno para agregar uno.</div>';
-  }
-
-  users.forEach((u, idx) => {
-    const card = document.createElement('div');
-    card.className = 'card';
-    card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <strong>${escapeHtml(u.nombre)}</strong>
-        <div style="display:flex;gap:8px">
-          <button class="btn small" id="btnAbrir_${idx}">Abrir</button>
-        </div>
+  function crearAlumno(nombre) {
+    const alumnoDiv = document.createElement("div");
+    alumnoDiv.classList.add("alumno");
+    alumnoDiv.innerHTML = `
+      <h2>${nombre}</h2>
+      <button class="abrir">Abrir</button>
+      <div class="registros oculto">
+        <input type="text" placeholder="Distancia (m)">
+        <input type="text" placeholder="Tiempo (s)">
+        <button class="agregarRegistro">Agregar registro</button>
+        <div class="listaRegistros"></div>
       </div>
-      <div id="contenido_${idx}" class="card-content"></div>
     `;
-    listaAlumnos.appendChild(card);
 
-    // add event after node exists
-    const btnAbrir = document.getElementById(`btnAbrir_${idx}`);
-    const contenido = document.getElementById(`contenido_${idx}`);
-    btnAbrir.onclick = () => {
-      // close others
-      users.forEach((_, i) => {
-        const c = document.getElementById(`contenido_${i}`);
-        if(c && i !== idx) c.classList.remove('open');
+    const abrirBtn = alumnoDiv.querySelector(".abrir");
+    const registrosDiv = alumnoDiv.querySelector(".registros");
+    const agregarRegistroBtn = alumnoDiv.querySelector(".agregarRegistro");
+    const listaRegistros = alumnoDiv.querySelector(".listaRegistros");
+
+    abrirBtn.addEventListener("click", () => {
+      document.querySelectorAll(".registros").forEach(r => {
+        if (r !== registrosDiv) r.classList.add("oculto");
       });
-      // toggle this
-      contenido.classList.toggle('open');
-      if(contenido.classList.contains('open')) renderAlumno(u, contenido, idx);
-    };
-  });
+      registrosDiv.classList.toggle("oculto");
+    });
 
-  document.getElementById('btnNuevoAlumno').onclick = () => {
-    const nombre = prompt("Nombre del nuevo alumno:");
-    if(!nombre) return;
-    const usersNow = loadUsers();
-    if(usersNow.find(x => x.nombre.toLowerCase() === nombre.trim().toLowerCase())){ alert("Ya existe un alumno con ese nombre"); return; }
-    usersNow.push({ nombre: nombre.trim(), registros: [] });
-    saveUsers(usersNow);
-    render();
-  };
-}
+    agregarRegistroBtn.addEventListener("click", () => {
+      const inputs = registrosDiv.querySelectorAll("input");
+      const distancia = inputs[0].value.trim();
+      const tiempo = inputs[1].value.trim();
+      if (distancia && tiempo) {
+        const p = document.createElement("p");
+        p.textContent = `Distancia: ${distancia}m - Tiempo: ${tiempo}s`;
+        listaRegistros.appendChild(p);
+        inputs[0].value = "";
+        inputs[1].value = "";
+      }
+    });
 
-/* -------------------------
-   Render alumno (contenido)
-   ------------------------- */
-function renderAlumno(u, container, idx){
-  // build markup
-  container.innerHTML = `
-    <form id="form_${idx}">
-      <label class="muted">Fecha</label>
-      <input type="date" id="fecha_${idx}" required>
-      <label class="muted" style="margin-top:6px">Metros nadados</label>
-      <input type="number" id="metros_${idx}" placeholder="Ej: 1500" required>
-      <div style="margin-top:8px; display:flex; gap:8px;">
-        <button class="btn small" type="submit">Agregar registro</button>
-        <button class="btn small" type="button" id="borrar_${idx}">Eliminar alumno</button>
-      </div>
-    </form>
-    <div id="hist_${idx}" style="margin-top:12px;"></div>
-    <div id="chartContainer_${idx}" style="margin-top:10px;">
-      <canvas id="chart_${idx}" width="600" height="240"></canvas>
-    </div>
-  `;
-
-  // handlers
-  const form = document.getElementById(`form_${idx}`);
-  form.onsubmit = (e) => {
-    e.preventDefault();
-    addRegistroAlumno(u.nombre, idx); // use name to find in storage
-  };
-  document.getElementById(`borrar_${idx}`).onclick = () => deleteAlumno(u.nombre);
-
-  // initial render of history + chart
-  // get the freshest user object from storage (in case something changed)
-  const users = loadUsers();
-  const fresh = users.find(x => x.nombre === u.nombre) || u;
-  renderHistorial(fresh, idx);
-  renderChartAlumno(fresh, idx);
-}
-
-/* -------------------------
-   Añadir registro (CORREGIDO)
-   - Busca el usuario en localStorage, lo actualiza, guarda y actualiza
-     solo el historial y gráfico del panel abierto (no re-render completo).
-   ------------------------- */
-function addRegistroAlumno(nombre, idx){
-  const users = loadUsers();
-  const user = users.find(u => u.nombre === nombre);
-  if(!user){
-    alert("Usuario no encontrado (recarga la página).");
-    return;
+    registroContainer.appendChild(alumnoDiv);
   }
 
-  const fechaEl = document.getElementById(`fecha_${idx}`);
-  const metrosEl = document.getElementById(`metros_${idx}`);
-  const fecha = fechaEl ? fechaEl.value : '';
-  const metros = metrosEl ? parseInt(metrosEl.value, 10) : NaN;
-
-  if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros correctamente."); return; }
-
-  // push al array que sí vamos a guardar
-  user.registros.push({ fecha, metros });
-
-  // guarda y actualiza solo la parte visible de este alumno
-  saveUsers(users);
-
-  // actualizar historial y grafico del panel abierto (mantiene panel abierto)
-  renderHistorial(user, idx);
-  renderChartAlumno(user, idx);
-
-  // limpiar inputs
-  if(fechaEl) fechaEl.value = '';
-  if(metrosEl) metrosEl.value = '';
-}
-
-/* -------------------------
-   Render historial
-   ------------------------- */
-function renderHistorial(u, idx){
-  const hist = document.getElementById(`hist_${idx}`);
-  if(!hist) return;
-  if(!u.registros || u.registros.length === 0){
-    hist.innerHTML = '<div class="empty-msg">No hay registros aún.</div>';
-    return;
-  }
-  // mostrar de más reciente a más antiguo
-  const rows = u.registros.slice().reverse().map(r => `<li>${escapeHtml(formatDate(r.fecha))} — ${r.metros} m</li>`).join('');
-  hist.innerHTML = `<strong>Historial</strong><ul>${rows}</ul>`;
-}
-
-/* -------------------------
-   Render gráfico (Chart.js)
-   ------------------------- */
-function renderChartAlumno(u, idx){
-  const canvas = document.getElementById(`chart_${idx}`);
-  if(!canvas) return;
-  const ctx = canvas.getContext('2d');
-
-  const labels = u.registros.map(r => formatDate(r.fecha));
-  const data = u.registros.map(r => r.metros);
-
-  // destruir si ya existía (para este idx)
-  if(window[`chartObj_${idx}`]){ window[`chartObj_${idx}`].destroy(); window[`chartObj_${idx}`] = null; }
-
-  // si no hay datos, limpiamos canvas y salimos
-  if(!data.length){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    return;
-  }
-
-  window[`chartObj_${idx}`] = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Metros nadados',
-        data,
-        borderColor: 'rgba(59,180,214,0.95)',
-        backgroundColor: 'rgba(59,180,214,0.25)',
-        tension: 0.25,
-        fill: true,
-        pointRadius: 3
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } },
-      scales: { y: { beginAtZero: true } }
+  agregarAlumnoBtn.addEventListener("click", () => {
+    const nombre = document.getElementById("nuevoNombre").value.trim();
+    if (nombre) {
+      crearAlumno(nombre);
+      document.getElementById("nuevoNombre").value = "";
     }
   });
-}
 
-/* -------------------------
-   Eliminar alumno
-   ------------------------- */
-function deleteAlumno(name){
-  if(!confirm('¿Eliminar nadador? Esta acción no se puede deshacer.')) return;
-  let users = loadUsers();
-  users = users.filter(u => u.nombre !== name);
-  saveUsers(users);
-  render();
-}
-
-/* -------------------------
-   Utilidades
-   ------------------------- */
-function formatDate(iso){
-  // iso is "yyyy-mm-dd" => return dd/mm/yyyy for display
-  if(!iso) return '';
-  const parts = iso.split('-');
-  if(parts.length !== 3) return iso;
-  return `${parts[2]}/${parts[1]}/${parts[0]}`;
-}
-function escapeHtml(str){
-  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[s]);
-}
-
-/* -------------------------
-   Inicializar
-   ------------------------- */
-(function init(){
-  if(!Array.isArray(loadUsers())) saveUsers([]);
-  render();
-})();
+  nuevoAlumnoBtn.addEventListener("click", () => {
+    document.getElementById("nuevoNombre").focus();
+  });
 </script>
+
 </body>
 </html>

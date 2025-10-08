@@ -76,6 +76,7 @@ input::placeholder{color:rgba(255,255,255,0.6)}
 .card-content{display:none;margin-top:10px;}
 .card-content.open{display:block;}
 ul{padding-left:18px;}
+.empty-msg{color:rgba(255,255,255,0.65);font-size:13px;margin-top:8px}
 </style>
 </head>
 <body>
@@ -97,49 +98,67 @@ ul{padding-left:18px;}
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
-const LS_USERS='natacion_users_v3';
-const LS_CURRENT='natacion_current_v3';
-const left=document.getElementById('left');
+/* -------------------------
+   Config & storage helpers
+   ------------------------- */
+const LS_USERS = 'natacion_users_v3';
+const left = document.getElementById('left');
 
 function requireProfessorAccess(){
-  const key=sessionStorage.getItem('profesor_access');
-  if(key==="profesor123") return true;
-  let attempt=prompt("Acceso solo para profesor. Ingresa clave:");
-  if(attempt==="profesor123"){sessionStorage.setItem('profesor_access',attempt); return true;}
-  alert("Clave incorrecta. No puedes entrar."); return false;
+  const key = sessionStorage.getItem('profesor_access');
+  if(key === "profesor123") return true; // cambiar clave en producción
+  const attempt = prompt("Acceso solo para profesor. Ingresa clave:");
+  if(attempt === "profesor123"){ sessionStorage.setItem('profesor_access', attempt); return true; }
+  alert("Clave incorrecta. No puedes entrar.");
+  return false;
 }
 
-function loadUsers(){return JSON.parse(localStorage.getItem(LS_USERS)||'[]');}
-function saveUsers(u){localStorage.setItem(LS_USERS,JSON.stringify(u));}
+function loadUsers(){ return JSON.parse(localStorage.getItem(LS_USERS) || '[]'); }
+function saveUsers(users){ localStorage.setItem(LS_USERS, JSON.stringify(users)); }
 
-// --------- RENDER PRINCIPAL ---------
-function render() {
-  if(!requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
+/* -------------------------
+   Render principal
+   ------------------------- */
+function render(){
+  if(!requireProfessorAccess()){ left.innerHTML = '<div class="empty-msg">Acceso denegado</div>'; return; }
 
   const users = loadUsers();
-  left.innerHTML = "<h3>Alumnos</h3><div id='listaAlumnos'></div><button class='btn small' id='btnNuevoAlumno'>+ Nuevo Alumno</button>";
+  left.innerHTML = `
+    <h3>Alumnos</h3>
+    <div id="listaAlumnos"></div>
+    <div style="margin-top:10px"><button class="btn small" id="btnNuevoAlumno">+ Nuevo Alumno</button></div>
+  `;
   const listaAlumnos = document.getElementById('listaAlumnos');
-  listaAlumnos.innerHTML = "";
+  listaAlumnos.innerHTML = '';
+
+  if(users.length === 0){
+    listaAlumnos.innerHTML = '<div class="empty-msg">No hay alumnos aún. Pulsa + Nuevo Alumno para agregar uno.</div>';
+  }
 
   users.forEach((u, idx) => {
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center; cursor:pointer;">
-        <strong>${u.nombre}</strong>
-        <button class="btn small" id="btnAbrir_${idx}">Abrir</button>
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <strong>${escapeHtml(u.nombre)}</strong>
+        <div style="display:flex;gap:8px">
+          <button class="btn small" id="btnAbrir_${idx}">Abrir</button>
+        </div>
       </div>
       <div id="contenido_${idx}" class="card-content"></div>
     `;
     listaAlumnos.appendChild(card);
 
+    // add event after node exists
     const btnAbrir = document.getElementById(`btnAbrir_${idx}`);
     const contenido = document.getElementById(`contenido_${idx}`);
     btnAbrir.onclick = () => {
+      // close others
       users.forEach((_, i) => {
         const c = document.getElementById(`contenido_${i}`);
-        if(c && i!==idx) c.classList.remove('open');
+        if(c && i !== idx) c.classList.remove('open');
       });
+      // toggle this
       contenido.classList.toggle('open');
       if(contenido.classList.contains('open')) renderAlumno(u, contenido, idx);
     };
@@ -148,81 +167,177 @@ function render() {
   document.getElementById('btnNuevoAlumno').onclick = () => {
     const nombre = prompt("Nombre del nuevo alumno:");
     if(!nombre) return;
-    if(users.find(x=>x.nombre===nombre)){alert("Ya existe"); return;}
-    users.push({nombre, registros:[]});
-    saveUsers(users);
+    const usersNow = loadUsers();
+    if(usersNow.find(x => x.nombre.toLowerCase() === nombre.trim().toLowerCase())){ alert("Ya existe un alumno con ese nombre"); return; }
+    usersNow.push({ nombre: nombre.trim(), registros: [] });
+    saveUsers(usersNow);
     render();
   };
 }
 
-// --------- RENDER ALUMNO ---------
+/* -------------------------
+   Render alumno (contenido)
+   ------------------------- */
 function renderAlumno(u, container, idx){
+  // build markup
   container.innerHTML = `
     <form id="form_${idx}">
-      <label>Fecha</label>
+      <label class="muted">Fecha</label>
       <input type="date" id="fecha_${idx}" required>
-      <label>Metros nadados</label>
+      <label class="muted" style="margin-top:6px">Metros nadados</label>
       <input type="number" id="metros_${idx}" placeholder="Ej: 1500" required>
-      <div style="margin-top:6px; display:flex; gap:8px;">
+      <div style="margin-top:8px; display:flex; gap:8px;">
         <button class="btn small" type="submit">Agregar registro</button>
         <button class="btn small" type="button" id="borrar_${idx}">Eliminar alumno</button>
       </div>
     </form>
-    <div id="hist_${idx}" style="margin-top:8px;"></div>
+    <div id="hist_${idx}" style="margin-top:12px;"></div>
     <div id="chartContainer_${idx}" style="margin-top:10px;">
-      <canvas id="chart_${idx}"></canvas>
+      <canvas id="chart_${idx}" width="600" height="240"></canvas>
     </div>
   `;
 
-  document.getElementById(`form_${idx}`).onsubmit = (e)=>{
+  // handlers
+  const form = document.getElementById(`form_${idx}`);
+  form.onsubmit = (e) => {
     e.preventDefault();
-    addRegistroAlumno(u, idx);
+    addRegistroAlumno(u.nombre, idx); // use name to find in storage
   };
-  document.getElementById(`borrar_${idx}`).onclick = ()=>{
-    deleteAlumno(u.nombre);
-  };
-  renderHistorial(u, idx);
-  renderChartAlumno(u, idx);
+  document.getElementById(`borrar_${idx}`).onclick = () => deleteAlumno(u.nombre);
+
+  // initial render of history + chart
+  // get the freshest user object from storage (in case something changed)
+  const users = loadUsers();
+  const fresh = users.find(x => x.nombre === u.nombre) || u;
+  renderHistorial(fresh, idx);
+  renderChartAlumno(fresh, idx);
 }
 
-function addRegistroAlumno(u, idx){
-  const fecha = document.getElementById(`fecha_${idx}`).value;
-  const metros = parseInt(document.getElementById(`metros_${idx}`).value);
-  if(!fecha||isNaN(metros)){alert("Rellena fecha y metros"); return;}
-  u.registros.push({fecha, metros});
-  saveUsers(loadUsers());
-  render();
+/* -------------------------
+   Añadir registro (CORREGIDO)
+   - Busca el usuario en localStorage, lo actualiza, guarda y actualiza
+     solo el historial y gráfico del panel abierto (no re-render completo).
+   ------------------------- */
+function addRegistroAlumno(nombre, idx){
+  const users = loadUsers();
+  const user = users.find(u => u.nombre === nombre);
+  if(!user){
+    alert("Usuario no encontrado (recarga la página).");
+    return;
+  }
+
+  const fechaEl = document.getElementById(`fecha_${idx}`);
+  const metrosEl = document.getElementById(`metros_${idx}`);
+  const fecha = fechaEl ? fechaEl.value : '';
+  const metros = metrosEl ? parseInt(metrosEl.value, 10) : NaN;
+
+  if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros correctamente."); return; }
+
+  // push al array que sí vamos a guardar
+  user.registros.push({ fecha, metros });
+
+  // guarda y actualiza solo la parte visible de este alumno
+  saveUsers(users);
+
+  // actualizar historial y grafico del panel abierto (mantiene panel abierto)
+  renderHistorial(user, idx);
+  renderChartAlumno(user, idx);
+
+  // limpiar inputs
+  if(fechaEl) fechaEl.value = '';
+  if(metrosEl) metrosEl.value = '';
 }
 
+/* -------------------------
+   Render historial
+   ------------------------- */
 function renderHistorial(u, idx){
   const hist = document.getElementById(`hist_${idx}`);
-  hist.innerHTML = "<ul>" + u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
+  if(!hist) return;
+  if(!u.registros || u.registros.length === 0){
+    hist.innerHTML = '<div class="empty-msg">No hay registros aún.</div>';
+    return;
+  }
+  // mostrar de más reciente a más antiguo
+  const rows = u.registros.slice().reverse().map(r => `<li>${escapeHtml(formatDate(r.fecha))} — ${r.metros} m</li>`).join('');
+  hist.innerHTML = `<strong>Historial</strong><ul>${rows}</ul>`;
 }
 
+/* -------------------------
+   Render gráfico (Chart.js)
+   ------------------------- */
 function renderChartAlumno(u, idx){
   const canvas = document.getElementById(`chart_${idx}`);
   if(!canvas) return;
   const ctx = canvas.getContext('2d');
-  const labels = u.registros.map(r=>r.fecha.split('-').reverse().join('/'));
-  const data = u.registros.map(r=>r.metros);
-  if(window[`chartObj_${idx}`]) window[`chartObj_${idx}`].destroy();
-  window[`chartObj_${idx}`] = new Chart(ctx,{
-    type:'line',
-    data:{labels,datasets:[{label:'Metros nadados',data,borderColor:'rgba(59,180,214,0.9)',backgroundColor:'rgba(59,180,214,0.3)',tension:0.3,fill:true}]},
-    options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+
+  const labels = u.registros.map(r => formatDate(r.fecha));
+  const data = u.registros.map(r => r.metros);
+
+  // destruir si ya existía (para este idx)
+  if(window[`chartObj_${idx}`]){ window[`chartObj_${idx}`].destroy(); window[`chartObj_${idx}`] = null; }
+
+  // si no hay datos, limpiamos canvas y salimos
+  if(!data.length){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    return;
+  }
+
+  window[`chartObj_${idx}`] = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Metros nadados',
+        data,
+        borderColor: 'rgba(59,180,214,0.95)',
+        backgroundColor: 'rgba(59,180,214,0.25)',
+        tension: 0.25,
+        fill: true,
+        pointRadius: 3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true } }
+    }
   });
 }
 
+/* -------------------------
+   Eliminar alumno
+   ------------------------- */
 function deleteAlumno(name){
   if(!confirm('¿Eliminar nadador? Esta acción no se puede deshacer.')) return;
   let users = loadUsers();
-  users = users.filter(u=>u.nombre!==name);
+  users = users.filter(u => u.nombre !== name);
   saveUsers(users);
   render();
 }
 
-// --------- INICIALIZAR ---------
-(function init(){const users=loadUsers();if(!Array.isArray(users)) saveUsers([]);render();})();
+/* -------------------------
+   Utilidades
+   ------------------------- */
+function formatDate(iso){
+  // iso is "yyyy-mm-dd" => return dd/mm/yyyy for display
+  if(!iso) return '';
+  const parts = iso.split('-');
+  if(parts.length !== 3) return iso;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+function escapeHtml(str){
+  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[s]);
+}
+
+/* -------------------------
+   Inicializar
+   ------------------------- */
+(function init(){
+  if(!Array.isArray(loadUsers())) saveUsers([]);
+  render();
+})();
 </script>
 </body>
 </html>

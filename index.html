@@ -16,11 +16,12 @@
   #nombreAlumno, #registroContainer {
     margin-top: 20px;
   }
-  input, button {
+  input, button, textarea {
     padding: 10px;
     border-radius: 10px;
     border: none;
     margin: 5px;
+    font-family: inherit;
   }
   button {
     background-color: #004aad;
@@ -54,6 +55,11 @@
     height: 60px;
     cursor: pointer;
   }
+  textarea {
+    width: 90%;
+    height: 70px;
+    resize: none;
+  }
 </style>
 </head>
 <body>
@@ -85,6 +91,8 @@
         <input type="text" placeholder="Tiempo (s)">
         <button class="agregarRegistro">Agregar registro</button>
         <div class="listaRegistros"></div>
+        <h3>Notas</h3>
+        <textarea placeholder="Escribe aquí las observaciones o notas del alumno..."></textarea>
       </div>
     `;
 

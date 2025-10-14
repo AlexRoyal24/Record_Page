@@ -96,26 +96,47 @@ textarea{width:100%;resize:none;margin-top:6px;}
   </main>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-const LS_USERS='natacion_users_v5';
-const left=document.getElementById('left');
+<script type="module">
+import { db, collection, addDoc, getDocs, deleteDoc, doc } from './firebase.js';
+import Chart from "https://cdn.jsdelivr.net/npm/chart.js";
 
-function requireProfessorAccess(){
-  const key=sessionStorage.getItem('profesor_access');
+const left = document.getElementById('left');
+
+// Acceso profesor
+async function requireProfessorAccess(){
+  const key = sessionStorage.getItem('profesor_access');
   if(key==="profesor123") return true;
-  let attempt=prompt("Acceso solo para profesor. Ingresa clave:");
-  if(attempt==="profesor123"){sessionStorage.setItem('profesor_access',attempt); return true;}
+  let attempt = prompt("Acceso solo para profesor. Ingresa clave:");
+  if(attempt==="profesor123"){ sessionStorage.setItem('profesor_access',attempt); return true; }
   alert("Clave incorrecta. No puedes entrar."); return false;
 }
 
-function loadUsers(){return JSON.parse(localStorage.getItem(LS_USERS)||'[]');}
-function saveUsers(u){localStorage.setItem(LS_USERS,JSON.stringify(u));}
+// ---------------------------
+// Funciones Firebase
+// ---------------------------
+async function loadUsers(){
+  const snapshot = await getDocs(collection(db, "usuarios"));
+  let users = [];
+  snapshot.forEach(doc => users.push({id: doc.id, ...doc.data()}));
+  return users;
+}
 
-function render() {
-  if(!requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
+async function saveUser(user){
+  if(user.id) return; // ya existe en Firestore
+  await addDoc(collection(db, "usuarios"), user);
+}
 
-  const users = loadUsers();
+async function deleteUser(userId){
+  await deleteDoc(doc(db, "usuarios", userId));
+}
+
+// ---------------------------
+// Renderizado
+// ---------------------------
+async function render(){
+  if(!await requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
+
+  const users = await loadUsers();
   left.innerHTML = "<h3>Alumnos</h3><div id='listaAlumnos'></div><button class='btn small' id='btnNuevoAlumno'>+ Nuevo Alumno</button>";
   const listaAlumnos = document.getElementById('listaAlumnos');
   listaAlumnos.innerHTML = "";
@@ -144,16 +165,19 @@ function render() {
     };
   });
 
-  document.getElementById('btnNuevoAlumno').onclick = () => {
+  document.getElementById('btnNuevoAlumno').onclick = async () => {
     const nombre = prompt("Nombre del nuevo alumno:");
     if(!nombre) return;
     if(users.find(x=>x.nombre===nombre)){alert("Ya existe"); return;}
-    users.push({nombre, registros:[], notas:""});
-    saveUsers(users);
+    const newUser = {nombre, registros:[], notas:""};
+    await saveUser(newUser);
     render();
   };
 }
 
+// ---------------------------
+// Render Alumno
+// ---------------------------
 function renderAlumno(u, container, idx){
   container.innerHTML = `
     <form id="form_${idx}">
@@ -168,44 +192,57 @@ function renderAlumno(u, container, idx){
     </form>
     <div id="hist_${idx}" style="margin-top:8px;"></div>
 
-    <!-- Cuadro de texto para instrucciones o notas de futuras clases -->
     <h3>Instrucciones / Notas</h3>
-    <textarea id="notas_${idx}" placeholder="Escribe aquí las instrucciones para futuras clases...">${u.notas||""}</textarea>
+    <textarea id="notas_${idx}" placeholder="Escribe aquí las instrucciones...">${u.notas||""}</textarea>
 
     <div id="chartContainer_${idx}" style="margin-top:10px;">
       <canvas id="chart_${idx}"></canvas>
     </div>
   `;
 
-  document.getElementById(`form_${idx}`).onsubmit = (e)=>{ e.preventDefault(); addRegistroAlumno(u, idx); };
-  document.getElementById(`borrar_${idx}`).onclick = ()=>{ deleteAlumno(u.nombre); };
+  document.getElementById(`form_${idx}`).onsubmit = async (e)=>{
+    e.preventDefault();
+    await addRegistroAlumno(u, idx);
+  };
 
-  // Guardar notas automáticamente
+  document.getElementById(`borrar_${idx}`).onclick = async ()=>{
+    if(confirm("¿Eliminar nadador?")) {
+      await deleteUser(u.id);
+      render();
+    }
+  };
+
   const notasTextarea = document.getElementById(`notas_${idx}`);
-  notasTextarea.addEventListener('input', ()=>{ u.notas = notasTextarea.value; saveUsers(loadUsers()); });
+  notasTextarea.addEventListener('input', ()=>{ u.notas = notasTextarea.value; });
 
   renderHistorial(u, idx);
   renderChartAlumno(u, idx);
 }
 
-function addRegistroAlumno(u, idx){
+// ---------------------------
+// Agregar registro
+// ---------------------------
+async function addRegistroAlumno(u, idx){
   const fecha = document.getElementById(`fecha_${idx}`).value;
   const metros = parseInt(document.getElementById(`metros_${idx}`).value);
   if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros"); return; }
 
-  // Agregar registro al alumno
+  // Guardar en Firestore
+  const userRef = doc(db, "usuarios", u.id);
+  const updatedRegistros = u.registros.concat({fecha, metros});
+  await addDoc(collection(userRef, "registros"), {fecha, metros});
   u.registros.push({fecha, metros});
-  saveUsers(loadUsers());
 
-  // Actualizar historial y gráfica sin cerrar la carpeta
   renderHistorial(u, idx);
   renderChartAlumno(u, idx);
 
-  // Limpiar inputs
   document.getElementById(`fecha_${idx}`).value = "";
   document.getElementById(`metros_${idx}`).value = "";
 }
 
+// ---------------------------
+// Render Historial y Gráfica
+// ---------------------------
 function renderHistorial(u, idx){
   const hist = document.getElementById(`hist_${idx}`);
   hist.innerHTML = "<ul>" + u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
@@ -225,16 +262,10 @@ function renderChartAlumno(u, idx){
   });
 }
 
-function deleteAlumno(name){
-  if(!confirm('¿Eliminar nadador? Esta acción no se puede deshacer.')) return;
-  let users = loadUsers();
-  users = users.filter(u=>u.nombre!==name);
-  saveUsers(users);
-  render();
-}
-
+// ---------------------------
 // Inicializar
-(function init(){const users=loadUsers();if(!Array.isArray(users)) saveUsers([]);render();})();
+// ---------------------------
+render();
 </script>
 </body>
 </html>

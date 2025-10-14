@@ -21,7 +21,7 @@ body{
   color:var(--blanco);
   display:flex;
   justify-content:center;
-  align-items:center;
+  align-items:flex-start;
   padding:20px;
 }
 .app{
@@ -92,17 +92,9 @@ textarea{width:100%;resize:none;margin-top:6px;}
   position: relative;
   transition: background 0.2s;
 }
-#buscador::placeholder {
-  color: rgba(255,255,255,0.6);
-}
-#buscador:focus {
-  background: rgba(255,255,255,0.15);
-}
-#buscador-wrapper {
-  position: relative;
-  width: 100%;
-  margin-bottom: 12px;
-}
+#buscador::placeholder { color: rgba(255,255,255,0.6); }
+#buscador:focus { background: rgba(255,255,255,0.15); }
+#buscador-wrapper { position: relative; width: 100%; margin-bottom: 12px; }
 #buscador-wrapper::before {
   content: "🔍";
   position: absolute;
@@ -138,16 +130,20 @@ import Chart from "https://cdn.jsdelivr.net/npm/chart.js";
 
 const left = document.getElementById('left');
 
-// Clave real simple
+// -----------------
+// Acceso profesor
+// -----------------
 async function requireProfessorAccess(){
   const key = sessionStorage.getItem('profesor_access');
-  if(key==="profesor123") return true;
-  let attempt = prompt("Acceso solo para profesor. Ingresa clave:");
-  if(attempt==="profesor123"){ sessionStorage.setItem('profesor_access',attempt); return true; }
+  if(key==="coromac2025") return true;
+  let attempt = prompt("Acceso solo para profesor. Ingresa la clave:");
+  if(attempt==="coromac2025"){ sessionStorage.setItem('profesor_access',attempt); return true; }
   alert("Clave incorrecta. No puedes entrar."); return false;
 }
 
-// Funciones Firebase
+// -----------------
+// Firebase
+// -----------------
 async function loadUsers(){
   const snapshot = await getDocs(collection(db, "usuarios"));
   let users = [];
@@ -155,16 +151,12 @@ async function loadUsers(){
   return users;
 }
 
-async function saveUser(user){
-  if(user.id) return;
-  await addDoc(collection(db, "usuarios"), user);
-}
+async function saveUser(user){ if(user.id) return; await addDoc(collection(db, "usuarios"), user); }
+async function deleteUser(userId){ await deleteDoc(doc(db, "usuarios", userId)); }
 
-async function deleteUser(userId){
-  await deleteDoc(doc(db, "usuarios", userId));
-}
-
-// Renderizado principal
+// -----------------
+// Render principal
+// -----------------
 async function render(){
   if(!await requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
 
@@ -181,7 +173,7 @@ async function render(){
 
   const listaAlumnos = document.getElementById('listaAlumnos');
 
-  users.forEach((u, idx) => {
+  users.forEach((u, idx)=>{
     const card = document.createElement('div');
     card.className = 'card';
     card.setAttribute('data-nombre', u.nombre.toLowerCase());
@@ -196,8 +188,8 @@ async function render(){
 
     const btnAbrir = document.getElementById(`btnAbrir_${idx}`);
     const contenido = document.getElementById(`contenido_${idx}`);
-    btnAbrir.onclick = () => {
-      users.forEach((_, i) => {
+    btnAbrir.onclick = ()=>{
+      users.forEach((_, i)=>{
         const c = document.getElementById(`contenido_${i}`);
         if(c && i!==idx) c.classList.remove('open');
       });
@@ -208,14 +200,15 @@ async function render(){
 
   // Buscador
   const buscador = document.getElementById('buscador');
-  buscador.addEventListener('input', () => {
+  buscador.addEventListener('input', ()=>{
     const val = buscador.value.toLowerCase();
-    document.querySelectorAll('#listaAlumnos .card').forEach(card => {
+    document.querySelectorAll('#listaAlumnos .card').forEach(card=>{
       card.style.display = card.dataset.nombre.includes(val) ? '' : 'none';
     });
   });
 
-  document.getElementById('btnNuevoAlumno').onclick = async () => {
+  // Nuevo alumno
+  document.getElementById('btnNuevoAlumno').onclick = async ()=>{
     const nombre = prompt("Nombre del nuevo alumno:");
     if(!nombre) return;
     if(users.find(x=>x.nombre===nombre)){alert("Ya existe"); return;}
@@ -225,7 +218,9 @@ async function render(){
   };
 }
 
-// Render Alumno individual
+// -----------------
+// Render alumno
+// -----------------
 function renderAlumno(u, container, idx){
   container.innerHTML = `
     <form id="form_${idx}">
@@ -239,22 +234,21 @@ function renderAlumno(u, container, idx){
       </div>
     </form>
     <div id="hist_${idx}" style="margin-top:8px;"></div>
-
-    <h3>Instrucciones / Notas</h3>
+    <h3>Notas / Instrucciones</h3>
     <textarea id="notas_${idx}" placeholder="Escribe aquí las instrucciones...">${u.notas||""}</textarea>
-
     <div id="chartContainer_${idx}" style="margin-top:10px;">
       <canvas id="chart_${idx}"></canvas>
     </div>
   `;
 
+  // Eventos
   document.getElementById(`form_${idx}`).onsubmit = async (e)=>{
     e.preventDefault();
     await addRegistroAlumno(u, idx);
   };
 
   document.getElementById(`borrar_${idx}`).onclick = async ()=>{
-    if(confirm("¿Eliminar nadador?")) {
+    if(confirm("¿Eliminar alumno?")){
       await deleteUser(u.id);
       render();
     }
@@ -267,7 +261,9 @@ function renderAlumno(u, container, idx){
   renderChartAlumno(u, idx);
 }
 
+// -----------------
 // Agregar registro
+// -----------------
 async function addRegistroAlumno(u, idx){
   const fecha = document.getElementById(`fecha_${idx}`).value;
   const metros = parseInt(document.getElementById(`metros_${idx}`).value);
@@ -284,7 +280,9 @@ async function addRegistroAlumno(u, idx){
   document.getElementById(`metros_${idx}`).value = "";
 }
 
+// -----------------
 // Render historial y gráfico
+// -----------------
 function renderHistorial(u, idx){
   const hist = document.getElementById(`hist_${idx}`);
   hist.innerHTML = "<ul>" + u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
@@ -304,12 +302,10 @@ function renderChartAlumno(u, idx){
   });
 }
 
-// Inicializar y refrescar cada 5s
-async function init(){
-  await render();
-  setInterval(render, 5000);
-}
-
+// -----------------
+// Inicializar
+// -----------------
+async function init(){ await render(); setInterval(render, 5000); }
 init();
 </script>
 </body>

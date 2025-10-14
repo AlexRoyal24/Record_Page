@@ -85,18 +85,25 @@ async function requireProfessorAccess(){
   alert("Clave incorrecta. No puedes entrar."); return false;
 }
 
-// Firebase
+// Cargar alumnos y sus registros
 async function loadUsers(){
   const snapshot = await getDocs(collection(db,"usuarios"));
   let users = [];
-  snapshot.forEach(doc=>users.push({id:doc.id,...doc.data()}));
+  for(const docSnap of snapshot.docs){
+    const u = {id:docSnap.id, ...docSnap.data()};
+    // Cargar registros
+    const regSnap = await getDocs(collection(db,"usuarios",u.id,"registros"));
+    u.registros = regSnap.docs.map(r=>r.data());
+    users.push(u);
+  }
   return users;
 }
 
 async function saveUser(user){ if(user.id) return await addDoc(collection(db,"usuarios"),user); }
 async function deleteUser(userId){ await deleteDoc(doc(db,"usuarios",userId)); }
+async function addRegistro(userId, registro){ await addDoc(collection(db,"usuarios",userId,"registros"), registro); }
 
-// Render
+// Render principal
 async function render(){
   if(!await requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
 
@@ -125,7 +132,7 @@ async function render(){
 
     const btnAbrir=document.getElementById(`btnAbrir_${idx}`);
     const contenido=document.getElementById(`contenido_${idx}`);
-    btnAbrir.onclick=()=>{
+    btnAbrir.onclick=()=>{ 
       users.forEach((_,i)=>{const c=document.getElementById(`contenido_${i}`);if(c && i!==idx)c.classList.remove('open');});
       contenido.classList.toggle('open');
       if(contenido.classList.contains('open')) renderAlumno(u,contenido,idx);
@@ -136,21 +143,21 @@ async function render(){
   document.getElementById('buscador').addEventListener('input',e=>{
     const val=e.target.value.toLowerCase();
     document.querySelectorAll('#listaAlumnos .card').forEach(c=>{
-      c.style.display=c.dataset.nombre.includes(val)?'none':'none';
-      if(c.dataset.nombre.includes(val)) c.style.display='';
+      c.style.display=c.dataset.nombre.includes(val)?'':'none';
     });
   });
 
+  // Nuevo alumno
   document.getElementById('btnNuevoAlumno').onclick=async ()=>{
     const nombre=prompt("Nombre del nuevo alumno:");
     if(!nombre) return;
     if(users.find(x=>x.nombre===nombre)){alert("Ya existe"); return;}
-    await saveUser({nombre,registros:[],notas:""});
+    await saveUser({nombre,notas:""});
     render();
   };
 }
 
-// Render Alumno
+// Render de cada alumno
 function renderAlumno(u,container,idx){
   container.innerHTML=`
     <form id="form_${idx}">
@@ -174,8 +181,7 @@ function renderAlumno(u,container,idx){
     const fecha=document.getElementById(`fecha_${idx}`).value;
     const metros=parseInt(document.getElementById(`metros_${idx}`).value);
     if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros"); return; }
-    const userRef=doc(db,"usuarios",u.id);
-    await addDoc(collection(userRef,"registros"),{fecha,metros});
+    await addRegistro(u.id,{fecha,metros});
     u.registros.push({fecha,metros});
     renderHistorial(u,idx);
     renderChartAlumno(u,idx);
@@ -195,7 +201,7 @@ function renderAlumno(u,container,idx){
   renderChartAlumno(u,idx);
 }
 
-// Historial y gráfico
+// Historial y gráfica
 function renderHistorial(u,idx){
   const hist=document.getElementById(`hist_${idx}`);
   hist.innerHTML="<ul>"+u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('')+"</ul>";

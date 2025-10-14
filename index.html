@@ -21,7 +21,7 @@ body{
   color:var(--blanco);
   display:flex;
   justify-content:center;
-  align-items:center;
+  align-items:flex-start;
   padding:20px;
 }
 .app{
@@ -123,32 +123,29 @@ textarea{width:100%;resize:none;margin-top:6px;}
 </div>
 
 <script type="module">
-import { db, collection, addDoc, getDocs, deleteDoc, doc } from './firebase.js';
+// Importar Firebase y Chart.js
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.17.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.17.0/firebase-firestore.js";
 import Chart from "https://cdn.jsdelivr.net/npm/chart.js";
 
+// Configuración Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyCMOjgT0Mb-bcA9fNlc23dc1DSKeyFPc1Y",
+  authDomain: "recordpage-e86a1.firebaseapp.com",
+  projectId: "recordpage-e86a1",
+  storageBucket: "recordpage-e86a1.firebasestorage.app",
+  messagingSenderId: "67394429287",
+  appId: "1:67394429287:web:30ff1f8d82081feac2cfc2",
+  measurementId: "G-W701BTFM3F"
+};
+
+// Inicializar Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 const left = document.getElementById('left');
 
-// Firebase
-async function loadUsers(){
-  const snapshot = await getDocs(collection(db, "usuarios"));
-  let users = [];
-  snapshot.forEach(doc => users.push({id: doc.id, ...doc.data()}));
-  return users;
-}
-
-async function saveUser(user){
-  if(user.id) return;
-  await addDoc(collection(db, "usuarios"), user);
-}
-
-async function deleteUser(userId){
-  await deleteDoc(doc(db, "usuarios", userId));
-}
-
-// Renderizado principal
-async function render(){
-  const users = await loadUsers();
-
+// Función para renderizar todos los alumnos
+function renderUsers(users){
   left.innerHTML = `
     <h3>Alumnos</h3>
     <div id="buscador-wrapper">
@@ -196,14 +193,13 @@ async function render(){
     });
   });
 
-  // Botón agregar
+  // Nuevo alumno
   document.getElementById('btnNuevoAlumno').onclick = async () => {
     const nombre = prompt("Nombre del nuevo alumno:");
     if(!nombre) return;
     if(users.find(x=>x.nombre===nombre)){alert("Ya existe"); return;}
     const newUser = {nombre, registros:[], notas:""};
-    await saveUser(newUser);
-    render();
+    await addDoc(collection(db, "usuarios"), newUser);
   };
 }
 
@@ -232,52 +228,42 @@ function renderAlumno(u, container, idx){
 
   document.getElementById(`form_${idx}`).onsubmit = async (e)=>{
     e.preventDefault();
-    await addRegistroAlumno(u, idx);
+    const fecha = document.getElementById(`fecha_${idx}`).value;
+    const metros = parseInt(document.getElementById(`metros_${idx}`).value);
+    if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros"); return; }
+    await addDoc(collection(doc(db, "usuarios", u.id), "registros"), {fecha, metros});
+    document.getElementById(`fecha_${idx}`).value = "";
+    document.getElementById(`metros_${idx}`).value = "";
   };
 
   document.getElementById(`borrar_${idx}`).onclick = async ()=>{
     if(confirm("¿Eliminar nadador?")) {
-      await deleteUser(u.id);
-      render();
+      await deleteDoc(doc(db, "usuarios", u.id));
     }
   };
 
   const notasTextarea = document.getElementById(`notas_${idx}`);
-  notasTextarea.addEventListener('input', ()=>{ u.notas = notasTextarea.value; });
+  notasTextarea.addEventListener('input', async ()=>{
+    await updateDoc(doc(db,"usuarios",u.id), {notas: notasTextarea.value});
+  });
 
   renderHistorial(u, idx);
   renderChartAlumno(u, idx);
 }
 
-// Agregar registro
-async function addRegistroAlumno(u, idx){
-  const fecha = document.getElementById(`fecha_${idx}`).value;
-  const metros = parseInt(document.getElementById(`metros_${idx}`).value);
-  if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros"); return; }
-
-  const userRef = doc(db, "usuarios", u.id);
-  await addDoc(collection(userRef, "registros"), {fecha, metros});
-  u.registros.push({fecha, metros});
-
-  renderHistorial(u, idx);
-  renderChartAlumno(u, idx);
-
-  document.getElementById(`fecha_${idx}`).value = "";
-  document.getElementById(`metros_${idx}`).value = "";
-}
-
-// Render historial y gráfica
 function renderHistorial(u, idx){
   const hist = document.getElementById(`hist_${idx}`);
-  hist.innerHTML = "<ul>" + u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
+  let registros = u.registros || [];
+  hist.innerHTML = "<ul>" + registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
 }
 
 function renderChartAlumno(u, idx){
   const canvas = document.getElementById(`chart_${idx}`);
   if(!canvas) return;
   const ctx = canvas.getContext('2d');
-  const labels = u.registros.map(r=>r.fecha.split('-').reverse().join('/'));
-  const data = u.registros.map(r=>r.metros);
+  let registros = u.registros || [];
+  const labels = registros.map(r=>r.fecha.split('-').reverse().join('/'));
+  const data = registros.map(r=>r.metros);
   if(window[`chartObj_${idx}`]) window[`chartObj_${idx}`].destroy();
   window[`chartObj_${idx}`] = new Chart(ctx,{
     type:'line',
@@ -286,13 +272,18 @@ function renderChartAlumno(u, idx){
   });
 }
 
-// Inicializar
-async function init(){
-  await render();
-  setInterval(render, 5000);
-}
-
-init();
+// Escuchar cambios en tiempo real
+onSnapshot(collection(db,"usuarios"), async (snapshot)=>{
+  const users = [];
+  for(const docSnap of snapshot.docs){
+    let data = docSnap.data();
+    // Traer registros de subcolección
+    const registrosSnap = await getDocs(collection(db, "usuarios", docSnap.id, "registros"));
+    data.registros = registrosSnap.docs.map(r=>r.data()).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+    users.push({id:docSnap.id, ...data});
+  }
+  renderUsers(users);
+});
 </script>
 </body>
 </html>

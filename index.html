@@ -17,41 +17,93 @@
 body{
   font-family:Inter,sans-serif;
   min-height:100vh;
-  background: linear-gradient(180deg,var(--azul-1),#022f3b);
+  background: radial-gradient(ellipse at 10% 10%, rgba(255,255,255,0.04), transparent 10%), linear-gradient(180deg,var(--azul-1),#022f3b);
   color:var(--blanco);
   display:flex;
   justify-content:center;
-  align-items:flex-start;
+  align-items:center;
   padding:20px;
 }
 .app{
   width:100%;
   max-width:var(--max-width);
-  background: rgba(255,255,255,0.05);
+  background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
   border-radius:18px;
   padding:18px;
   box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
-header{display:flex;gap:12px;align-items:center;justify-content:space-between;margin-bottom:12px;}
-.logo{display:flex;gap:12px;align-items:center;}
-.logo .icon{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--azul-2),var(--azul-1));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;color:var(--blanco);}
+header{
+  display:flex;
+  gap:12px;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:12px;
+}
+.logo{
+  display:flex;
+  gap:12px;
+  align-items:center;
+}
+.logo .icon{
+  width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--azul-2),var(--azul-1));
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:22px;color:rgba(255,255,255,0.95);
+}
 h1{font-size:20px;margin:0}
 p.lead{font-size:13px;color:rgba(255,255,255,0.85)}
-.card{background: rgba(255,255,255,0.08); padding:14px; border-radius:var(--card-radius); margin-bottom:12px; box-shadow:0 6px 18px rgba(0,0,0,0.3);}
-input, button, textarea{padding:10px 12px;border-radius:10px;border:0;outline:none;font-size:14px;}
-input::placeholder, textarea::placeholder{color:rgba(255,255,255,0.6);}
-.btn{background:linear-gradient(90deg,var(--azul-2),var(--azul-1)); color:var(--blanco); cursor:pointer; border:none; border-radius:10px; font-weight:600; transition:transform var(--trans), box-shadow var(--trans);}
+.card{
+  background: rgba(255,255,255,0.04);
+  padding:14px;
+  border-radius:var(--card-radius);
+  box-shadow:0 6px 18px rgba(2,18,24,0.25);
+  margin-bottom:12px;
+}
+input, button, textarea{padding:10px 12px;border-radius:10px;border:0;outline:none;font-size:14px}
+input::placeholder, textarea::placeholder{color:rgba(255,255,255,0.6)}
+.btn{
+  background:linear-gradient(90deg,var(--azul-2),var(--azul-1));
+  color:var(--blanco);
+  cursor:pointer;
+  border:none;
+  border-radius:10px;
+  font-weight:600;
+  transition:transform var(--trans), box-shadow var(--trans);
+}
 .btn:active{transform:translateY(1px)}
 .small{font-size:13px;padding:8px 10px}
+.muted{color:rgba(255,255,255,0.7);font-size:13px}
 .card-content{display:none;margin-top:10px;}
 .card-content.open{display:block;}
 ul{padding-left:18px;}
 textarea{width:100%;resize:none;margin-top:6px;}
-#buscador-wrapper{position:relative;margin-bottom:12px;}
-#buscador{width:100%;padding:10px 36px 10px 12px;border-radius:12px;border:none;font-size:14px;background:rgba(255,255,255,0.1);color:white;}
-#buscador::placeholder{color:rgba(255,255,255,0.6);}
-#buscador-wrapper::before{content:"🔍";position:absolute;left:12px;top:50%;transform:translateY(-50%);}
+
+/* Buscador estilo moderno */
+#buscador {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  background: rgba(255,255,255,0.08);
+  color: var(--blanco);
+  transition: background 0.2s;
+}
+#buscador::placeholder { color: rgba(255,255,255,0.6); }
+#buscador:focus { background: rgba(255,255,255,0.15); }
+#buscador-wrapper { position: relative; width: 100%; margin-bottom: 12px; }
+#buscador-wrapper::before {
+  content: "🔍";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 16px;
+}
+#buscador { padding-left: 36px; }
 </style>
 </head>
 <body>
@@ -76,52 +128,55 @@ import Chart from "https://cdn.jsdelivr.net/npm/chart.js";
 
 const left = document.getElementById('left');
 
-// Clave simple
+// Acceso profesor
 async function requireProfessorAccess(){
   const key = sessionStorage.getItem('profesor_access');
   if(key==="profesor123") return true;
-  let attempt = prompt("Acceso solo para profesor. Ingresa la clave:");
+  let attempt = prompt("Acceso solo para profesor. Ingresa clave:");
   if(attempt==="profesor123"){ sessionStorage.setItem('profesor_access',attempt); return true; }
   alert("Clave incorrecta. No puedes entrar."); return false;
 }
 
-// Cargar alumnos y sus registros
+// Firebase
 async function loadUsers(){
-  const snapshot = await getDocs(collection(db,"usuarios"));
+  const snapshot = await getDocs(collection(db, "usuarios"));
   let users = [];
-  for(const docSnap of snapshot.docs){
-    const u = {id:docSnap.id, ...docSnap.data()};
-    // Cargar registros
-    const regSnap = await getDocs(collection(db,"usuarios",u.id,"registros"));
-    u.registros = regSnap.docs.map(r=>r.data());
-    users.push(u);
-  }
+  snapshot.forEach(doc => users.push({id: doc.id, ...doc.data()}));
   return users;
 }
 
-async function saveUser(user){ if(user.id) return await addDoc(collection(db,"usuarios"),user); }
-async function deleteUser(userId){ await deleteDoc(doc(db,"usuarios",userId)); }
-async function addRegistro(userId, registro){ await addDoc(collection(db,"usuarios",userId,"registros"), registro); }
+async function saveUser(user){
+  if(user.id) return;
+  await addDoc(collection(db, "usuarios"), user);
+}
 
-// Render principal
+async function deleteUser(userId){
+  await deleteDoc(doc(db, "usuarios", userId));
+}
+
+// Renderizado principal
 async function render(){
   if(!await requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
 
   const users = await loadUsers();
-  left.innerHTML=`
+
+  left.innerHTML = `
     <h3>Alumnos</h3>
-    <div id="buscador-wrapper"><input type="text" id="buscador" placeholder="Buscar alumno..."></div>
-    <div id="listaAlumnos"></div>
+    <div id="buscador-wrapper">
+      <input type="text" id="buscador" placeholder="Buscar alumno...">
+    </div>
+    <div id='listaAlumnos'></div>
     <button class='btn small' id='btnNuevoAlumno'>+ Nuevo Alumno</button>
   `;
 
   const listaAlumnos = document.getElementById('listaAlumnos');
+  listaAlumnos.innerHTML = "";
 
-  users.forEach((u,idx)=>{
-    const card=document.createElement('div');
-    card.className='card';
-    card.setAttribute('data-nombre',u.nombre.toLowerCase());
-    card.innerHTML=`
+  users.forEach((u, idx) => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.setAttribute('data-nombre', u.nombre.toLowerCase());
+    card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center; cursor:pointer;">
         <strong>${u.nombre}</strong>
         <button class="btn small" id="btnAbrir_${idx}">Abrir</button>
@@ -130,99 +185,124 @@ async function render(){
     `;
     listaAlumnos.appendChild(card);
 
-    const btnAbrir=document.getElementById(`btnAbrir_${idx}`);
-    const contenido=document.getElementById(`contenido_${idx}`);
-    btnAbrir.onclick=()=>{ 
-      users.forEach((_,i)=>{const c=document.getElementById(`contenido_${i}`);if(c && i!==idx)c.classList.remove('open');});
+    const btnAbrir = document.getElementById(`btnAbrir_${idx}`);
+    const contenido = document.getElementById(`contenido_${idx}`);
+    btnAbrir.onclick = () => {
+      users.forEach((_, i) => {
+        const c = document.getElementById(`contenido_${i}`);
+        if(c && i!==idx) c.classList.remove('open');
+      });
       contenido.classList.toggle('open');
-      if(contenido.classList.contains('open')) renderAlumno(u,contenido,idx);
+      if(contenido.classList.contains('open')) renderAlumno(u, contenido, idx);
     };
   });
 
   // Buscador
-  document.getElementById('buscador').addEventListener('input',e=>{
-    const val=e.target.value.toLowerCase();
-    document.querySelectorAll('#listaAlumnos .card').forEach(c=>{
-      c.style.display=c.dataset.nombre.includes(val)?'':'none';
+  const buscador = document.getElementById('buscador');
+  buscador.addEventListener('input', () => {
+    const val = buscador.value.toLowerCase();
+    document.querySelectorAll('#listaAlumnos .card').forEach(card => {
+      if(card.dataset.nombre.includes(val)) card.style.display = '';
+      else card.style.display = 'none';
     });
   });
 
-  // Nuevo alumno
-  document.getElementById('btnNuevoAlumno').onclick=async ()=>{
-    const nombre=prompt("Nombre del nuevo alumno:");
+  // Botón agregar
+  document.getElementById('btnNuevoAlumno').onclick = async () => {
+    const nombre = prompt("Nombre del nuevo alumno:");
     if(!nombre) return;
     if(users.find(x=>x.nombre===nombre)){alert("Ya existe"); return;}
-    await saveUser({nombre,notas:""});
+    const newUser = {nombre, registros:[], notas:""};
+    await saveUser(newUser);
     render();
   };
 }
 
-// Render de cada alumno
-function renderAlumno(u,container,idx){
-  container.innerHTML=`
+// Render alumno individual
+function renderAlumno(u, container, idx){
+  container.innerHTML = `
     <form id="form_${idx}">
       <label>Fecha</label>
       <input type="date" id="fecha_${idx}" required>
       <label>Metros nadados</label>
-      <input type="number" id="metros_${idx}" placeholder="Ej:1500" required>
+      <input type="number" id="metros_${idx}" placeholder="Ej: 1500" required>
       <div style="margin-top:6px; display:flex; gap:8px;">
         <button class="btn small" type="submit">Agregar registro</button>
         <button class="btn small" type="button" id="borrar_${idx}">Eliminar alumno</button>
       </div>
     </form>
     <div id="hist_${idx}" style="margin-top:8px;"></div>
-    <h3>Notas / Instrucciones</h3>
-    <textarea id="notas_${idx}" placeholder="Escribe aquí">${u.notas||""}</textarea>
-    <div id="chartContainer_${idx}" style="margin-top:10px;"><canvas id="chart_${idx}"></canvas></div>
+
+    <h3>Instrucciones / Notas</h3>
+    <textarea id="notas_${idx}" placeholder="Escribe aquí las instrucciones...">${u.notas||""}</textarea>
+
+    <div id="chartContainer_${idx}" style="margin-top:10px;">
+      <canvas id="chart_${idx}"></canvas>
+    </div>
   `;
 
-  document.getElementById(`form_${idx}`).onsubmit=async e=>{
+  document.getElementById(`form_${idx}`).onsubmit = async (e)=>{
     e.preventDefault();
-    const fecha=document.getElementById(`fecha_${idx}`).value;
-    const metros=parseInt(document.getElementById(`metros_${idx}`).value);
-    if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros"); return; }
-    await addRegistro(u.id,{fecha,metros});
-    u.registros.push({fecha,metros});
-    renderHistorial(u,idx);
-    renderChartAlumno(u,idx);
-    document.getElementById(`fecha_${idx}`).value='';
-    document.getElementById(`metros_${idx}`).value='';
+    await addRegistroAlumno(u, idx);
   };
 
-  document.getElementById(`borrar_${idx}`).onclick=async ()=>{
-    if(confirm("Eliminar alumno?")){ await deleteUser(u.id); render(); }
+  document.getElementById(`borrar_${idx}`).onclick = async ()=>{
+    if(confirm("¿Eliminar nadador?")) {
+      await deleteUser(u.id);
+      render();
+    }
   };
 
-  document.getElementById(`notas_${idx}`).addEventListener('input',e=>{
-    u.notas=e.target.value;
-  });
+  const notasTextarea = document.getElementById(`notas_${idx}`);
+  notasTextarea.addEventListener('input', ()=>{ u.notas = notasTextarea.value; });
 
-  renderHistorial(u,idx);
-  renderChartAlumno(u,idx);
+  renderHistorial(u, idx);
+  renderChartAlumno(u, idx);
 }
 
-// Historial y gráfica
-function renderHistorial(u,idx){
-  const hist=document.getElementById(`hist_${idx}`);
-  hist.innerHTML="<ul>"+u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('')+"</ul>";
+// Agregar registro
+async function addRegistroAlumno(u, idx){
+  const fecha = document.getElementById(`fecha_${idx}`).value;
+  const metros = parseInt(document.getElementById(`metros_${idx}`).value);
+  if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros"); return; }
+
+  const userRef = doc(db, "usuarios", u.id);
+  await addDoc(collection(userRef, "registros"), {fecha, metros});
+  u.registros.push({fecha, metros});
+
+  renderHistorial(u, idx);
+  renderChartAlumno(u, idx);
+
+  document.getElementById(`fecha_${idx}`).value = "";
+  document.getElementById(`metros_${idx}`).value = "";
 }
 
-function renderChartAlumno(u,idx){
-  const canvas=document.getElementById(`chart_${idx}`);
+// Render historial y gráfica
+function renderHistorial(u, idx){
+  const hist = document.getElementById(`hist_${idx}`);
+  hist.innerHTML = "<ul>" + u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
+}
+
+function renderChartAlumno(u, idx){
+  const canvas = document.getElementById(`chart_${idx}`);
   if(!canvas) return;
-  const ctx=canvas.getContext('2d');
-  const labels=u.registros.map(r=>r.fecha.split('-').reverse().join('/'));
-  const data=u.registros.map(r=>r.metros);
+  const ctx = canvas.getContext('2d');
+  const labels = u.registros.map(r=>r.fecha.split('-').reverse().join('/'));
+  const data = u.registros.map(r=>r.metros);
   if(window[`chartObj_${idx}`]) window[`chartObj_${idx}`].destroy();
-  window[`chartObj_${idx}`]=new Chart(ctx,{
+  window[`chartObj_${idx}`] = new Chart(ctx,{
     type:'line',
-    data:{labels,datasets:[{label:'Metros nadados',data,borderColor:'rgba(59,180,214,0.9)',backgroundColor:'rgba(59,180,214,0.3)',fill:true,tension:0.3}]},
+    data:{labels,datasets:[{label:'Metros nadados',data,borderColor:'rgba(59,180,214,0.9)',backgroundColor:'rgba(59,180,214,0.3)',tension:0.3,fill:true}]},
     options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
   });
 }
 
 // Inicializar
-async function init(){ await render(); setInterval(render,5000);}
+async function init(){
+  await render();
+  setInterval(render, 5000);
+}
+
 init();
 </script>
 </body>

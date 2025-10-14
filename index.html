@@ -77,6 +77,44 @@ input::placeholder, textarea::placeholder{color:rgba(255,255,255,0.6)}
 .card-content.open{display:block;}
 ul{padding-left:18px;}
 textarea{width:100%;resize:none;margin-top:6px;}
+
+/* Buscador estilo moderno */
+#buscador {
+  width: 100%;
+  padding: 10px 40px 10px 12px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  background: rgba(255,255,255,0.08);
+  color: var(--blanco);
+  position: relative;
+  transition: background 0.2s;
+}
+#buscador::placeholder {
+  color: rgba(255,255,255,0.6);
+}
+#buscador:focus {
+  background: rgba(255,255,255,0.15);
+}
+#buscador-wrapper {
+  position: relative;
+  width: 100%;
+  margin-bottom: 12px;
+}
+#buscador-wrapper::before {
+  content: "🔍";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  font-size: 16px;
+}
+#buscador {
+  padding-left: 36px;
+}
 </style>
 </head>
 <body>
@@ -111,9 +149,7 @@ async function requireProfessorAccess(){
   alert("Clave incorrecta. No puedes entrar."); return false;
 }
 
-// ---------------------------
 // Funciones Firebase
-// ---------------------------
 async function loadUsers(){
   const snapshot = await getDocs(collection(db, "usuarios"));
   let users = [];
@@ -122,7 +158,7 @@ async function loadUsers(){
 }
 
 async function saveUser(user){
-  if(user.id) return; // ya existe en Firestore
+  if(user.id) return;
   await addDoc(collection(db, "usuarios"), user);
 }
 
@@ -130,20 +166,28 @@ async function deleteUser(userId){
   await deleteDoc(doc(db, "usuarios", userId));
 }
 
-// ---------------------------
 // Renderizado
-// ---------------------------
 async function render(){
   if(!await requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
 
   const users = await loadUsers();
-  left.innerHTML = "<h3>Alumnos</h3><div id='listaAlumnos'></div><button class='btn small' id='btnNuevoAlumno'>+ Nuevo Alumno</button>";
+
+  left.innerHTML = `
+    <h3>Alumnos</h3>
+    <div id="buscador-wrapper">
+      <input type="text" id="buscador" placeholder="Buscar alumno...">
+    </div>
+    <div id='listaAlumnos'></div>
+    <button class='btn small' id='btnNuevoAlumno'>+ Nuevo Alumno</button>
+  `;
+
   const listaAlumnos = document.getElementById('listaAlumnos');
   listaAlumnos.innerHTML = "";
 
   users.forEach((u, idx) => {
     const card = document.createElement('div');
     card.className = 'card';
+    card.setAttribute('data-nombre', u.nombre.toLowerCase());
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:center; cursor:pointer;">
         <strong>${u.nombre}</strong>
@@ -165,6 +209,16 @@ async function render(){
     };
   });
 
+  // Función buscador
+  const buscador = document.getElementById('buscador');
+  buscador.addEventListener('input', () => {
+    const val = buscador.value.toLowerCase();
+    document.querySelectorAll('#listaAlumnos .card').forEach(card => {
+      if(card.dataset.nombre.includes(val)) card.style.display = '';
+      else card.style.display = 'none';
+    });
+  });
+
   document.getElementById('btnNuevoAlumno').onclick = async () => {
     const nombre = prompt("Nombre del nuevo alumno:");
     if(!nombre) return;
@@ -175,9 +229,7 @@ async function render(){
   };
 }
 
-// ---------------------------
 // Render Alumno
-// ---------------------------
 function renderAlumno(u, container, idx){
   container.innerHTML = `
     <form id="form_${idx}">
@@ -219,17 +271,13 @@ function renderAlumno(u, container, idx){
   renderChartAlumno(u, idx);
 }
 
-// ---------------------------
 // Agregar registro
-// ---------------------------
 async function addRegistroAlumno(u, idx){
   const fecha = document.getElementById(`fecha_${idx}`).value;
   const metros = parseInt(document.getElementById(`metros_${idx}`).value);
   if(!fecha || isNaN(metros)){ alert("Rellena fecha y metros"); return; }
 
-  // Guardar en Firestore
   const userRef = doc(db, "usuarios", u.id);
-  const updatedRegistros = u.registros.concat({fecha, metros});
   await addDoc(collection(userRef, "registros"), {fecha, metros});
   u.registros.push({fecha, metros});
 
@@ -240,9 +288,7 @@ async function addRegistroAlumno(u, idx){
   document.getElementById(`metros_${idx}`).value = "";
 }
 
-// ---------------------------
 // Render Historial y Gráfica
-// ---------------------------
 function renderHistorial(u, idx){
   const hist = document.getElementById(`hist_${idx}`);
   hist.innerHTML = "<ul>" + u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";
@@ -262,10 +308,13 @@ function renderChartAlumno(u, idx){
   });
 }
 
-// ---------------------------
-// Inicializar
-// ---------------------------
-render();
+// Inicializar y refrescar cada 5s
+async function init(){
+  await render();
+  setInterval(render, 5000);
+}
+
+init();
 </script>
 </body>
 </html>

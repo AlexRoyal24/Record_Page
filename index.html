@@ -113,7 +113,7 @@ textarea{width:100%;resize:none;margin-top:6px;}
       <div class="icon">C</div>
       <div>
         <h1>Club Coromac — Registro de Natación</h1>
-        <p class="lead">Solo profesor • Responsive</p>
+        <p class="lead">Responsive</p>
       </div>
     </div>
   </header>
@@ -127,15 +127,6 @@ import { db, collection, addDoc, getDocs, deleteDoc, doc } from './firebase.js';
 import Chart from "https://cdn.jsdelivr.net/npm/chart.js";
 
 const left = document.getElementById('left');
-
-// Acceso profesor
-async function requireProfessorAccess(){
-  const key = sessionStorage.getItem('profesor_access');
-  if(key==="profesor123") return true;
-  let attempt = prompt("Acceso solo para profesor. Ingresa clave:");
-  if(attempt==="profesor123"){ sessionStorage.setItem('profesor_access',attempt); return true; }
-  alert("Clave incorrecta. No puedes entrar."); return false;
-}
 
 // Firebase
 async function loadUsers(){
@@ -156,8 +147,6 @@ async function deleteUser(userId){
 
 // Renderizado principal
 async function render(){
-  if(!await requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
-
   const users = await loadUsers();
 
   left.innerHTML = `

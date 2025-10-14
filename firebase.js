@@ -1,11 +1,8 @@
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+// Importa solo lo necesario para Firestore
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.17.0/firebase-app.js";
+import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.17.0/firebase-firestore.js";
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+// Configuración de tu Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyCMOjgT0Mb-bcA9fNlc23dc1DSKeyFPc1Y",
   authDomain: "recordpage-e86a1.firebaseapp.com",
@@ -16,6 +13,12 @@ const firebaseConfig = {
   measurementId: "G-W701BTFM3F"
 };
 
-// Initialize Firebase
+// Inicializar Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+const db = getFirestore(app);
+
+// Ahora `db` ya está disponible para usar en tu HTML/JS:
+// Ejemplo:
+// await addDoc(collection(db, "usuarios"), { nombre: "Juan", registros: [], notas: "" });
+// const snapshot = await getDocs(collection(db, "usuarios"));
+// await deleteDoc(doc(db, "usuarios", "ID_DEL_USUARIO"));

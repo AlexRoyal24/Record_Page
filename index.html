@@ -138,19 +138,13 @@ import Chart from "https://cdn.jsdelivr.net/npm/chart.js";
 
 const left = document.getElementById('left');
 
-// Acceso profesor con clave codificada
+// Clave real simple
 async function requireProfessorAccess(){
-  const storedKey = sessionStorage.getItem('profesor_access');
-  const realKey = 'cHJvZmVzb3IxMjM='; // 'profesor123' codificado en base64
-  if(storedKey===realKey) return true;
-
+  const key = sessionStorage.getItem('profesor_access');
+  if(key==="profesor123") return true;
   let attempt = prompt("Acceso solo para profesor. Ingresa clave:");
-  if(btoa(attempt)===realKey){
-    sessionStorage.setItem('profesor_access', realKey);
-    return true;
-  }
-  alert("Clave incorrecta. No puedes entrar."); 
-  return false;
+  if(attempt==="profesor123"){ sessionStorage.setItem('profesor_access',attempt); return true; }
+  alert("Clave incorrecta. No puedes entrar."); return false;
 }
 
 // Funciones Firebase
@@ -170,7 +164,7 @@ async function deleteUser(userId){
   await deleteDoc(doc(db, "usuarios", userId));
 }
 
-// Renderizado
+// Renderizado principal
 async function render(){
   if(!await requireProfessorAccess()){ left.innerHTML="Acceso denegado"; return; }
 
@@ -186,7 +180,6 @@ async function render(){
   `;
 
   const listaAlumnos = document.getElementById('listaAlumnos');
-  listaAlumnos.innerHTML = "";
 
   users.forEach((u, idx) => {
     const card = document.createElement('div');
@@ -213,13 +206,12 @@ async function render(){
     };
   });
 
-  // Función buscador
+  // Buscador
   const buscador = document.getElementById('buscador');
   buscador.addEventListener('input', () => {
     const val = buscador.value.toLowerCase();
     document.querySelectorAll('#listaAlumnos .card').forEach(card => {
-      if(card.dataset.nombre.includes(val)) card.style.display = '';
-      else card.style.display = 'none';
+      card.style.display = card.dataset.nombre.includes(val) ? '' : 'none';
     });
   });
 
@@ -233,7 +225,7 @@ async function render(){
   };
 }
 
-// Render Alumno
+// Render Alumno individual
 function renderAlumno(u, container, idx){
   container.innerHTML = `
     <form id="form_${idx}">
@@ -292,7 +284,7 @@ async function addRegistroAlumno(u, idx){
   document.getElementById(`metros_${idx}`).value = "";
 }
 
-// Render Historial y Gráfica
+// Render historial y gráfico
 function renderHistorial(u, idx){
   const hist = document.getElementById(`hist_${idx}`);
   hist.innerHTML = "<ul>" + u.registros.map(r=>`<li>${r.fecha} — ${r.metros} m</li>`).join('') + "</ul>";

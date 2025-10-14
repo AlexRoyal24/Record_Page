@@ -112,9 +112,7 @@ textarea{width:100%;resize:none;margin-top:6px;}
   pointer-events: none;
   font-size: 16px;
 }
-#buscador {
-  padding-left: 36px;
-}
+#buscador { padding-left: 36px; }
 </style>
 </head>
 <body>
@@ -140,13 +138,19 @@ import Chart from "https://cdn.jsdelivr.net/npm/chart.js";
 
 const left = document.getElementById('left');
 
-// Acceso profesor
+// Acceso profesor con clave codificada
 async function requireProfessorAccess(){
-  const key = sessionStorage.getItem('profesor_access');
-  if(key==="profesor123") return true;
+  const storedKey = sessionStorage.getItem('profesor_access');
+  const realKey = 'cHJvZmVzb3IxMjM='; // 'profesor123' codificado en base64
+  if(storedKey===realKey) return true;
+
   let attempt = prompt("Acceso solo para profesor. Ingresa clave:");
-  if(attempt==="profesor123"){ sessionStorage.setItem('profesor_access',attempt); return true; }
-  alert("Clave incorrecta. No puedes entrar."); return false;
+  if(btoa(attempt)===realKey){
+    sessionStorage.setItem('profesor_access', realKey);
+    return true;
+  }
+  alert("Clave incorrecta. No puedes entrar."); 
+  return false;
 }
 
 // Funciones Firebase

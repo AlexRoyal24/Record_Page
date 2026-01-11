@@ -1,13 +1,164 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Record_Pages</title>
+<meta charset="UTF-8">
+<title>Record_Pages</title>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #eef2f6;
+    margin: 0;
+    padding: 20px;
+}
+.hidden { display:none; }
+
+.card {
+    background: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 5px rgba(0,0,0,.1);
+}
+
+button {
+    background: #1976d2;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+}
+button:hover { background:#0f5ca8; }
+
+input, textarea {
+    width: 100%;
+    padding: 5px;
+    margin: 4px 0;
+}
+.bar-container {
+    display: flex;
+    height: 120px;
+    margin-top: 10px;
+}
+.bar {
+    flex:1;
+    margin: 0 3px;
+    background: #4caf50;
+    text-align: center;
+    color: white;
+    font-size: 12px;
+}
+</style>
 </head>
+
 <body>
 
-<h1>🔥 SI VES ESTO, GITHUB FUNCIONA 🔥</h1>
-<p>Prueba de renderizado</p>
+<h1>Registro de Natación</h1>
+
+<div id="login" class="card">
+    <h2>Ingreso Profesores</h2>
+    <input id="pass" type="password" placeholder="Contraseña">
+    <button onclick="login()">Ingresar</button>
+</div>
+
+<div id="app" class="hidden">
+
+    <div id="profesores"></div>
+
+</div>
+
+<script>
+const PASSWORD = "1234";
+const dias = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+
+let data = {
+    profesores: [
+        { nombre: "Profesor 1", alumnos: [] },
+        { nombre: "Profesor 2", alumnos: [] },
+        { nombre: "Profesor 3", alumnos: [] }
+    ]
+};
+
+function login() {
+    if(document.getElementById("pass").value === PASSWORD) {
+        document.getElementById("login").classList.add("hidden");
+        document.getElementById("app").classList.remove("hidden");
+        render();
+    } else {
+        alert("Contraseña incorrecta");
+    }
+}
+
+function render() {
+    const cont = document.getElementById("profesores");
+    cont.innerHTML = "";
+
+    data.profesores.forEach((p,pi)=>{
+        const div = document.createElement("div");
+        div.className = "card";
+
+        div.innerHTML = `
+            <input value="${p.nombre}" onchange="data.profesores[${pi}].nombre=this.value">
+            <button onclick="addAlumno(${pi})">➕ Alumno</button>
+            <div id="alumnos-${pi}"></div>
+        `;
+        cont.appendChild(div);
+
+        p.alumnos.forEach((a,ai)=>renderAlumno(pi,ai));
+    });
+}
+
+function addAlumno(pi){
+    data.profesores[pi].alumnos.push({
+        nombre:"Alumno",
+        metros:[0,0,0,0,0,0,0],
+        comentario:""
+    });
+    render();
+}
+
+function renderAlumno(pi,ai){
+    const a = data.profesores[pi].alumnos[ai];
+    const cont = document.getElementById(`alumnos-${pi}`);
+
+    const totalSemana = a.metros.reduce((x,y)=>x+y,0);
+    const totalMes = totalSemana * 4;
+
+    let bars = "";
+    a.metros.forEach(m=>{
+        bars += `<div class="bar" style="height:${m/5}px">${m}</div>`;
+    });
+
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+        <input value="${a.nombre}" onchange="data.profesores[${pi}].alumnos[${ai}].nombre=this.value">
+        ${dias.map((d,i)=>`
+            <label>${d}
+            <input type="number" value="${a.metros[i]}" 
+            onchange="updateMetro(${pi},${ai},${i},this.value)">
+            </label>
+        `).join("")}
+
+        <div class="bar-container">${bars}</div>
+
+        <p><b>Total Semana:</b> ${totalSemana} m</p>
+        <p><b>Total Mes:</b> ${totalMes} m</p>
+
+        <textarea placeholder="Comentario próximo día"
+        onchange="data.profesores[${pi}].alumnos[${ai}].comentario=this.value">${a.comentario}</textarea>
+
+        <button onclick="window.print()">⬇ Descargar PDF</button>
+    `;
+    cont.appendChild(div);
+}
+
+function updateMetro(pi,ai,i,val){
+    data.profesores[pi].alumnos[ai].metros[i]=Number(val);
+    render();
+}
+</script>
 
 </body>
 </html>

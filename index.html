@@ -5,50 +5,38 @@
 <title>Record_Pages</title>
 
 <style>
-body {
+body{
     font-family: Arial, sans-serif;
-    background: #eef2f6;
-    margin: 0;
-    padding: 20px;
+    background:#eef3f8;
+    padding:20px;
 }
-.hidden { display:none; }
-
-.card {
-    background: white;
-    padding: 15px;
-    border-radius: 10px;
-    margin-bottom: 15px;
-    box-shadow: 0 2px 5px rgba(0,0,0,.1);
+.hidden{display:none;}
+.card{
+    background:white;
+    padding:15px;
+    margin-bottom:15px;
+    border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,.15);
 }
-
-button {
-    background: #1976d2;
-    color: white;
-    border: none;
-    padding: 6px 12px;
-    border-radius: 5px;
-    cursor: pointer;
+button{
+    background:#1976d2;
+    color:white;
+    border:none;
+    padding:6px 12px;
+    border-radius:5px;
+    cursor:pointer;
 }
-button:hover { background:#0f5ca8; }
-
-input, textarea {
-    width: 100%;
-    padding: 5px;
-    margin: 4px 0;
+button:hover{background:#0f5ca8;}
+input,textarea{
+    width:100%;
+    padding:5px;
+    margin:4px 0;
 }
-.bar-container {
-    display: flex;
-    height: 120px;
-    margin-top: 10px;
+canvas{
+    width:100%;
+    height:200px;
 }
-.bar {
-    flex:1;
-    margin: 0 3px;
-    background: #4caf50;
-    text-align: center;
-    color: white;
-    font-size: 12px;
-}
+hr{margin:10px 0;}
 </style>
 </head>
 
@@ -58,53 +46,56 @@ input, textarea {
 
 <div id="login" class="card">
     <h2>Ingreso Profesores</h2>
-    <input id="pass" type="password" placeholder="Contraseña">
+    <input type="password" id="pass" placeholder="Contraseña">
     <button onclick="login()">Ingresar</button>
 </div>
 
 <div id="app" class="hidden">
-
     <div id="profesores"></div>
-
 </div>
 
 <script>
-const PASSWORD = "1234";
-const dias = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+const PASSWORD="1234";
+const dias=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 
-let data = {
-    profesores: [
-        { nombre: "Profesor 1", alumnos: [] },
-        { nombre: "Profesor 2", alumnos: [] },
-        { nombre: "Profesor 3", alumnos: [] }
+let data = JSON.parse(localStorage.getItem("natacionData")) || {
+    profesores:[
+        {nombre:"Profesor 1", alumnos:[]},
+        {nombre:"Profesor 2", alumnos:[]},
+        {nombre:"Profesor 3", alumnos:[]}
     ]
 };
 
-function login() {
-    if(document.getElementById("pass").value === PASSWORD) {
-        document.getElementById("login").classList.add("hidden");
-        document.getElementById("app").classList.remove("hidden");
-        render();
-    } else {
-        alert("Contraseña incorrecta");
-    }
+function save(){
+    localStorage.setItem("natacionData",JSON.stringify(data));
 }
 
-function render() {
-    const cont = document.getElementById("profesores");
-    cont.innerHTML = "";
+function login(){
+    if(pass.value===PASSWORD){
+        loginDiv.classList.add("hidden");
+        app.classList.remove("hidden");
+        render();
+    }else alert("Contraseña incorrecta");
+}
 
+const loginDiv=document.getElementById("login");
+const app=document.getElementById("app");
+
+function render(){
+    const cont=document.getElementById("profesores");
+    cont.innerHTML="";
     data.profesores.forEach((p,pi)=>{
-        const div = document.createElement("div");
-        div.className = "card";
-
-        div.innerHTML = `
-            <input value="${p.nombre}" onchange="data.profesores[${pi}].nombre=this.value">
+        const div=document.createElement("div");
+        div.className="card";
+        div.innerHTML=`
+            <h2>
+            <input value="${p.nombre}" 
+            onchange="data.profesores[${pi}].nombre=this.value;save()">
+            </h2>
             <button onclick="addAlumno(${pi})">➕ Alumno</button>
             <div id="alumnos-${pi}"></div>
         `;
         cont.appendChild(div);
-
         p.alumnos.forEach((a,ai)=>renderAlumno(pi,ai));
     });
 }
@@ -115,48 +106,93 @@ function addAlumno(pi){
         metros:[0,0,0,0,0,0,0],
         comentario:""
     });
+    save();
     render();
 }
 
 function renderAlumno(pi,ai){
-    const a = data.profesores[pi].alumnos[ai];
-    const cont = document.getElementById(`alumnos-${pi}`);
+    const a=data.profesores[pi].alumnos[ai];
+    const cont=document.getElementById(`alumnos-${pi}`);
 
-    const totalSemana = a.metros.reduce((x,y)=>x+y,0);
-    const totalMes = totalSemana * 4;
+    const totalSemana=a.metros.reduce((x,y)=>x+y,0);
+    const totalMes=totalSemana*4;
 
-    let bars = "";
-    a.metros.forEach(m=>{
-        bars += `<div class="bar" style="height:${m/5}px">${m}</div>`;
-    });
-
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-        <input value="${a.nombre}" onchange="data.profesores[${pi}].alumnos[${ai}].nombre=this.value">
+    const div=document.createElement("div");
+    div.className="card";
+    div.innerHTML=`
+        <input value="${a.nombre}" 
+        onchange="aName(${pi},${ai},this.value)">
         ${dias.map((d,i)=>`
             <label>${d}
-            <input type="number" value="${a.metros[i]}" 
+            <input type="number" value="${a.metros[i]}"
             onchange="updateMetro(${pi},${ai},${i},this.value)">
             </label>
         `).join("")}
 
-        <div class="bar-container">${bars}</div>
+        <canvas id="chart-${pi}-${ai}"></canvas>
 
         <p><b>Total Semana:</b> ${totalSemana} m</p>
         <p><b>Total Mes:</b> ${totalMes} m</p>
 
         <textarea placeholder="Comentario próximo día"
-        onchange="data.profesores[${pi}].alumnos[${ai}].comentario=this.value">${a.comentario}</textarea>
+        onchange="updateComment(${pi},${ai},this.value)">${a.comentario}</textarea>
 
-        <button onclick="window.print()">⬇ Descargar PDF</button>
+        <button onclick="downloadPDF(${pi},${ai})">⬇ Descargar PDF</button>
     `;
     cont.appendChild(div);
+
+    drawChart(`chart-${pi}-${ai}`,a.metros);
 }
 
-function updateMetro(pi,ai,i,val){
-    data.profesores[pi].alumnos[ai].metros[i]=Number(val);
+function aName(p,a,val){
+    data.profesores[p].alumnos[a].nombre=val;
+    save();
+}
+
+function updateMetro(p,a,i,val){
+    data.profesores[p].alumnos[a].metros[i]=Number(val);
+    save();
     render();
+}
+
+function updateComment(p,a,val){
+    data.profesores[p].alumnos[a].comentario=val;
+    save();
+}
+
+function drawChart(id,vals){
+    const c=document.getElementById(id);
+    const ctx=c.getContext("2d");
+    c.width=c.offsetWidth;
+    c.height=200;
+    ctx.clearRect(0,0,c.width,c.height);
+
+    const max=Math.max(...vals,10);
+    ctx.beginPath();
+    ctx.strokeStyle="#1976d2";
+    ctx.lineWidth=2;
+
+    vals.forEach((v,i)=>{
+        const x=(c.width/6)*i;
+        const y=c.height-(v/max*c.height);
+        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+}
+
+function downloadPDF(p,a){
+    const al=data.profesores[p].alumnos[a];
+    const total=al.metros.reduce((x,y)=>x+y,0);
+    const w=window.open("");
+    w.document.write(`
+        <h1>Reporte de Natación</h1>
+        <p><b>Alumno:</b> ${al.nombre}</p>
+        <p><b>Total semanal:</b> ${total} m</p>
+        <p><b>Total mensual:</b> ${total*4} m</p>
+        <p><b>Comentario:</b> ${al.comentario}</p>
+        <p><b>Fecha:</b> ${new Date().toLocaleDateString()}</p>
+    `);
+    w.print();
 }
 </script>
 

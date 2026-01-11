@@ -36,7 +36,9 @@ canvas{
     width:100%;
     height:200px;
 }
-hr{margin:10px 0;}
+label{
+    font-size:14px;
+}
 </style>
 </head>
 
@@ -44,64 +46,79 @@ hr{margin:10px 0;}
 
 <h1>Registro de Natación</h1>
 
+<!-- LOGIN -->
 <div id="login" class="card">
     <h2>Ingreso Profesores</h2>
-    <input type="password" id="pass" placeholder="Contraseña">
+    <input type="password" id="pass" placeholder="Clave del profesor">
     <button onclick="login()">Ingresar</button>
 </div>
 
+<!-- APP -->
 <div id="app" class="hidden">
     <div id="profesores"></div>
 </div>
 
 <script>
-const PASSWORD="1234";
 const dias=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 
+// 🔐 CONFIGURACIÓN DE PROFESORES (EDITAR SOLO AQUÍ)
+const profesoresConfig = [
+    { nombre:"Profesor 1", clave:"prof1" },
+    { nombre:"Profesor 2", clave:"prof2" },
+    { nombre:"Profesor 3", clave:"prof3" }
+];
+
+let profesorActivo = null;
+
+// DATOS
 let data = JSON.parse(localStorage.getItem("natacionData")) || {
-    profesores:[
-        {nombre:"Profesor 1", alumnos:[]},
-        {nombre:"Profesor 2", alumnos:[]},
-        {nombre:"Profesor 3", alumnos:[]}
-    ]
+    profesores: profesoresConfig.map(p => ({
+        nombre: p.nombre,
+        alumnos: []
+    }))
 };
 
 function save(){
-    localStorage.setItem("natacionData",JSON.stringify(data));
+    localStorage.setItem("natacionData", JSON.stringify(data));
 }
 
+// LOGIN
 function login(){
-    if(pass.value===PASSWORD){
-        loginDiv.classList.add("hidden");
-        app.classList.remove("hidden");
-        render();
-    }else alert("Contraseña incorrecta");
+    const clave = document.getElementById("pass").value;
+    const index = profesoresConfig.findIndex(p => p.clave === clave);
+
+    if(index === -1){
+        alert("Clave incorrecta");
+        return;
+    }
+
+    profesorActivo = index;
+    document.getElementById("login").classList.add("hidden");
+    document.getElementById("app").classList.remove("hidden");
+    render();
 }
 
-const loginDiv=document.getElementById("login");
-const app=document.getElementById("app");
-
+// RENDER SOLO DEL PROFESOR ACTIVO
 function render(){
-    const cont=document.getElementById("profesores");
-    cont.innerHTML="";
-    data.profesores.forEach((p,pi)=>{
-        const div=document.createElement("div");
-        div.className="card";
-        div.innerHTML=`
-            <h2>
-            <input value="${p.nombre}" 
-            onchange="data.profesores[${pi}].nombre=this.value;save()">
-            </h2>
-            <button onclick="addAlumno(${pi})">➕ Alumno</button>
-            <div id="alumnos-${pi}"></div>
-        `;
-        cont.appendChild(div);
-        p.alumnos.forEach((a,ai)=>renderAlumno(pi,ai));
-    });
+    const cont = document.getElementById("profesores");
+    cont.innerHTML = "";
+
+    const p = data.profesores[profesorActivo];
+
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+        <h2>${p.nombre}</h2>
+        <button onclick="addAlumno()">➕ Alumno</button>
+        <div id="alumnos"></div>
+    `;
+    cont.appendChild(div);
+
+    p.alumnos.forEach((a,ai)=>renderAlumno(ai));
 }
 
-function addAlumno(pi){
-    data.profesores[pi].alumnos.push({
+function addAlumno(){
+    data.profesores[profesorActivo].alumnos.push({
         nombre:"Alumno",
         metros:[0,0,0,0,0,0,0],
         comentario:""
@@ -110,82 +127,86 @@ function addAlumno(pi){
     render();
 }
 
-function renderAlumno(pi,ai){
-    const a=data.profesores[pi].alumnos[ai];
-    const cont=document.getElementById(`alumnos-${pi}`);
+function renderAlumno(ai){
+    const a = data.profesores[profesorActivo].alumnos[ai];
+    const cont = document.getElementById("alumnos");
 
-    const totalSemana=a.metros.reduce((x,y)=>x+y,0);
-    const totalMes=totalSemana*4;
+    const totalSemana = a.metros.reduce((x,y)=>x+y,0);
+    const totalMes = totalSemana * 4;
 
-    const div=document.createElement("div");
-    div.className="card";
-    div.innerHTML=`
-        <input value="${a.nombre}" 
-        onchange="aName(${pi},${ai},this.value)">
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+        <input value="${a.nombre}" onchange="updateName(${ai},this.value)">
+
         ${dias.map((d,i)=>`
             <label>${d}
-            <input type="number" value="${a.metros[i]}"
-            onchange="updateMetro(${pi},${ai},${i},this.value)">
+                <input type="number" value="${a.metros[i]}"
+                onchange="updateMetro(${ai},${i},this.value)">
             </label>
         `).join("")}
 
-        <canvas id="chart-${pi}-${ai}"></canvas>
+        <canvas id="chart-${ai}"></canvas>
 
-        <p><b>Total Semana:</b> ${totalSemana} m</p>
-        <p><b>Total Mes:</b> ${totalMes} m</p>
+        <p><b>Total semanal:</b> ${totalSemana} m</p>
+        <p><b>Total mensual:</b> ${totalMes} m</p>
 
-        <textarea placeholder="Comentario próximo día"
-        onchange="updateComment(${pi},${ai},this.value)">${a.comentario}</textarea>
+        <textarea placeholder="Comentario para el próximo día"
+        onchange="updateComment(${ai},this.value)">${a.comentario}</textarea>
 
-        <button onclick="downloadPDF(${pi},${ai})">⬇ Descargar PDF</button>
+        <button onclick="downloadPDF(${ai})">⬇ Descargar PDF</button>
     `;
     cont.appendChild(div);
 
-    drawChart(`chart-${pi}-${ai}`,a.metros);
+    drawChart(`chart-${ai}`, a.metros);
 }
 
-function aName(p,a,val){
-    data.profesores[p].alumnos[a].nombre=val;
+function updateName(a,val){
+    data.profesores[profesorActivo].alumnos[a].nombre = val;
     save();
 }
 
-function updateMetro(p,a,i,val){
-    data.profesores[p].alumnos[a].metros[i]=Number(val);
+function updateMetro(a,i,val){
+    data.profesores[profesorActivo].alumnos[a].metros[i] = Number(val);
     save();
     render();
 }
 
-function updateComment(p,a,val){
-    data.profesores[p].alumnos[a].comentario=val;
+function updateComment(a,val){
+    data.profesores[profesorActivo].alumnos[a].comentario = val;
     save();
 }
 
+// GRÁFICA DE LÍNEA
 function drawChart(id,vals){
-    const c=document.getElementById(id);
-    const ctx=c.getContext("2d");
-    c.width=c.offsetWidth;
-    c.height=200;
+    const c = document.getElementById(id);
+    const ctx = c.getContext("2d");
+    c.width = c.offsetWidth;
+    c.height = 200;
     ctx.clearRect(0,0,c.width,c.height);
 
-    const max=Math.max(...vals,10);
+    const max = Math.max(...vals, 10);
     ctx.beginPath();
-    ctx.strokeStyle="#1976d2";
-    ctx.lineWidth=2;
+    ctx.strokeStyle = "#1976d2";
+    ctx.lineWidth = 2;
 
     vals.forEach((v,i)=>{
-        const x=(c.width/6)*i;
-        const y=c.height-(v/max*c.height);
-        i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+        const x = (c.width/6) * i;
+        const y = c.height - (v/max * c.height);
+        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
     });
     ctx.stroke();
 }
 
-function downloadPDF(p,a){
-    const al=data.profesores[p].alumnos[a];
-    const total=al.metros.reduce((x,y)=>x+y,0);
-    const w=window.open("");
+// PDF
+function downloadPDF(a){
+    const al = data.profesores[profesorActivo].alumnos[a];
+    const total = al.metros.reduce((x,y)=>x+y,0);
+
+    const w = window.open("");
     w.document.write(`
         <h1>Reporte de Natación</h1>
+        <p><b>Profesor:</b> ${data.profesores[profesorActivo].nombre}</p>
         <p><b>Alumno:</b> ${al.nombre}</p>
         <p><b>Total semanal:</b> ${total} m</p>
         <p><b>Total mensual:</b> ${total*4} m</p>

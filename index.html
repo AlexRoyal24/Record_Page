@@ -4,216 +4,208 @@
 <meta charset="UTF-8">
 <title>Record_Pages</title>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
 body{
     font-family: Arial, sans-serif;
-    background:#eef3f8;
+    background:#f4f6f8;
+    margin:0;
     padding:20px;
 }
-.hidden{display:none;}
-.card{
-    background:white;
-    padding:15px;
-    margin-bottom:15px;
-    border-radius:10px;
-    box-shadow:0 2px 6px rgba(0,0,0,.15);
+h2,h3{
+    margin-top:0;
+}
+input, button{
+    padding:8px;
+    margin:5px 0;
 }
 button{
-    background:#1976d2;
-    color:white;
-    border:none;
-    padding:6px 12px;
-    border-radius:5px;
     cursor:pointer;
 }
-button:hover{background:#0f5ca8;}
-input,textarea{
-    width:100%;
-    padding:5px;
-    margin:4px 0;
+.hidden{
+    display:none;
+}
+.card{
+    background:#fff;
+    padding:15px;
+    margin-bottom:15px;
+    border-radius:8px;
+    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+.alumno{
+    border-left:5px solid #2196f3;
 }
 canvas{
-    width:100%;
-    height:200px;
-}
-label{
-    font-size:14px;
+    max-width:100%;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Registro de Natación</h1>
-
 <!-- LOGIN -->
 <div id="login" class="card">
-    <h2>Ingreso Profesores</h2>
-    <input type="password" id="pass" placeholder="Clave del profesor">
+    <h2>Ingreso de Profesor</h2>
+    <input type="password" id="password" placeholder="Contraseña">
+    <br>
     <button onclick="login()">Ingresar</button>
 </div>
 
-<!-- APP -->
-<div id="app" class="hidden">
-    <div id="profesores"></div>
+<!-- PANEL -->
+<div id="panel" class="hidden">
+    <h2 id="profName"></h2>
+    <button onclick="logout()">Cerrar sesión</button>
+
+    <div class="card">
+        <h3>Agregar alumno</h3>
+        <input type="text" id="newAlumno" placeholder="Nombre del alumno">
+        <br>
+        <button onclick="addAlumno()">Crear alumno</button>
+    </div>
+
+    <div id="alumnos"></div>
 </div>
 
 <script>
-const dias=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+/* CONFIG PROFESORES */
+const profesores = {
+    prof1: "Profesor 1",
+    prof2: "Profesor 2",
+    prof3: "Profesor 3"
+};
 
-// 🔐 CONFIGURACIÓN DE PROFESORES (EDITAR SOLO AQUÍ)
-const profesoresConfig = [
-    { nombre:"Profesor 1", clave:"prof1" },
-    { nombre:"Profesor 2", clave:"prof2" },
-    { nombre:"Profesor 3", clave:"prof3" }
-];
+let profesorActual = null;
 
-let profesorActivo = null;
-
-// DATOS
+/* DATA */
 let data = JSON.parse(localStorage.getItem("natacionData")) || {
-    profesores: profesoresConfig.map(p => ({
-        nombre: p.nombre,
-        alumnos: []
-    }))
+    profesores:{
+        prof1:[],
+        prof2:[],
+        prof3:[]
+    }
 };
 
 function save(){
     localStorage.setItem("natacionData", JSON.stringify(data));
 }
 
-// LOGIN
+/* LOGIN */
 function login(){
-    const clave = document.getElementById("pass").value;
-    const index = profesoresConfig.findIndex(p => p.clave === clave);
-
-    if(index === -1){
-        alert("Clave incorrecta");
-        return;
+    const pass = document.getElementById("password").value;
+    if(profesores[pass]){
+        profesorActual = pass;
+        document.getElementById("login").classList.add("hidden");
+        document.getElementById("panel").classList.remove("hidden");
+        document.getElementById("profName").innerText = profesores[pass];
+        renderAlumnos();
+    }else{
+        alert("Contraseña incorrecta");
     }
-
-    profesorActivo = index;
-    document.getElementById("login").classList.add("hidden");
-    document.getElementById("app").classList.remove("hidden");
-    render();
 }
 
-// RENDER SOLO DEL PROFESOR ACTIVO
-function render(){
-    const cont = document.getElementById("profesores");
-    cont.innerHTML = "";
-
-    const p = data.profesores[profesorActivo];
-
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-        <h2>${p.nombre}</h2>
-        <button onclick="addAlumno()">➕ Alumno</button>
-        <div id="alumnos"></div>
-    `;
-    cont.appendChild(div);
-
-    p.alumnos.forEach((a,ai)=>renderAlumno(ai));
+function logout(){
+    location.reload();
 }
 
+/* ALUMNOS */
 function addAlumno(){
-    data.profesores[profesorActivo].alumnos.push({
-        nombre:"Alumno",
-        metros:[0,0,0,0,0,0,0],
+    const nombre = document.getElementById("newAlumno").value.trim();
+    if(!nombre) return;
+    data.profesores[profesorActual].push({
+        nombre,
+        registros:[],
         comentario:""
     });
+    document.getElementById("newAlumno").value="";
     save();
-    render();
+    renderAlumnos();
 }
 
-function renderAlumno(ai){
-    const a = data.profesores[profesorActivo].alumnos[ai];
+function renderAlumnos(){
     const cont = document.getElementById("alumnos");
+    cont.innerHTML="";
+    data.profesores[profesorActual].forEach((a,i)=>{
+        const div = document.createElement("div");
+        div.className="card alumno";
+        div.innerHTML=`
+            <h3>${a.nombre}</h3>
 
-    const totalSemana = a.metros.reduce((x,y)=>x+y,0);
-    const totalMes = totalSemana * 4;
+            <input type="number" placeholder="Metros nadados">
+            <button>Agregar</button>
 
-    const div = document.createElement("div");
-    div.className = "card";
-    div.innerHTML = `
-        <input value="${a.nombre}" onchange="updateName(${ai},this.value)">
+            <canvas id="chart${i}"></canvas>
 
-        ${dias.map((d,i)=>`
-            <label>${d}
-                <input type="number" value="${a.metros[i]}"
-                onchange="updateMetro(${ai},${i},this.value)">
-            </label>
-        `).join("")}
+            <textarea placeholder="Comentario para la próxima clase" style="width:100%;height:60px;">${a.comentario}</textarea>
+            <br>
+            <button>📥 Descargar PDF</button>
+        `;
+        cont.appendChild(div);
 
-        <canvas id="chart-${ai}"></canvas>
+        const input = div.querySelector("input");
+        const btnAdd = div.querySelectorAll("button")[0];
+        const textarea = div.querySelector("textarea");
+        const btnPDF = div.querySelectorAll("button")[1];
 
-        <p><b>Total semanal:</b> ${totalSemana} m</p>
-        <p><b>Total mensual:</b> ${totalMes} m</p>
+        btnAdd.onclick = ()=>{
+            const val = Number(input.value);
+            if(!val) return;
+            a.registros.push({
+                fecha: new Date().toLocaleDateString(),
+                metros: val
+            });
+            input.value="";
+            save();
+            renderAlumnos();
+        };
 
-        <textarea placeholder="Comentario para el próximo día"
-        onchange="updateComment(${ai},this.value)">${a.comentario}</textarea>
+        textarea.onchange = ()=>{
+            a.comentario = textarea.value;
+            save();
+        };
 
-        <button onclick="downloadPDF(${ai})">⬇ Descargar PDF</button>
-    `;
-    cont.appendChild(div);
+        drawChart(`chart${i}`, a.registros);
 
-    drawChart(`chart-${ai}`, a.metros);
-}
-
-function updateName(a,val){
-    data.profesores[profesorActivo].alumnos[a].nombre = val;
-    save();
-}
-
-function updateMetro(a,i,val){
-    data.profesores[profesorActivo].alumnos[a].metros[i] = Number(val);
-    save();
-    render();
-}
-
-function updateComment(a,val){
-    data.profesores[profesorActivo].alumnos[a].comentario = val;
-    save();
-}
-
-// GRÁFICA DE LÍNEA
-function drawChart(id,vals){
-    const c = document.getElementById(id);
-    const ctx = c.getContext("2d");
-    c.width = c.offsetWidth;
-    c.height = 200;
-    ctx.clearRect(0,0,c.width,c.height);
-
-    const max = Math.max(...vals, 10);
-    ctx.beginPath();
-    ctx.strokeStyle = "#1976d2";
-    ctx.lineWidth = 2;
-
-    vals.forEach((v,i)=>{
-        const x = (c.width/6) * i;
-        const y = c.height - (v/max * c.height);
-        i === 0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+        btnPDF.onclick = ()=>{
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+            pdf.text(`Alumno: ${a.nombre}`,10,10);
+            let y=20;
+            a.registros.forEach(r=>{
+                pdf.text(`${r.fecha}: ${r.metros} m`,10,y);
+                y+=8;
+            });
+            pdf.text("Comentario:",10,y+5);
+            pdf.text(a.comentario || "-",10,y+13);
+            pdf.save(`${a.nombre}.pdf`);
+        };
     });
-    ctx.stroke();
 }
 
-// PDF
-function downloadPDF(a){
-    const al = data.profesores[profesorActivo].alumnos[a];
-    const total = al.metros.reduce((x,y)=>x+y,0);
+/* GRAFICA */
+function drawChart(id, registros){
+    const ctx = document.getElementById(id);
+    if(!ctx) return;
 
-    const w = window.open("");
-    w.document.write(`
-        <h1>Reporte de Natación</h1>
-        <p><b>Profesor:</b> ${data.profesores[profesorActivo].nombre}</p>
-        <p><b>Alumno:</b> ${al.nombre}</p>
-        <p><b>Total semanal:</b> ${total} m</p>
-        <p><b>Total mensual:</b> ${total*4} m</p>
-        <p><b>Comentario:</b> ${al.comentario}</p>
-        <p><b>Fecha:</b> ${new Date().toLocaleDateString()}</p>
-    `);
-    w.print();
+    new Chart(ctx,{
+        type:'line',
+        data:{
+            labels: registros.map(r=>r.fecha),
+            datasets:[{
+                label:'Metros nadados',
+                data: registros.map(r=>r.metros),
+                borderWidth:2,
+                fill:false
+            }]
+        },
+        options:{
+            scales:{
+                x:{ title:{ display:true, text:'Fecha' }},
+                y:{ title:{ display:true, text:'Metros' }, beginAtZero:true }
+            }
+        }
+    });
 }
 </script>
 

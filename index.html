@@ -12,6 +12,7 @@ body{
     font-family: Arial, sans-serif;
     background:#f2f4f7;
     padding:20px;
+    margin:0;
 }
 .card{
     background:#fff;
@@ -21,21 +22,47 @@ body{
     box-shadow:0 2px 6px rgba(0,0,0,.1);
 }
 .hidden{ display:none; }
+
 button,input,textarea{
-    width:100%;
-    padding:8px;
-    margin:5px 0;
+    padding:10px;
+    margin:6px 0;
     box-sizing:border-box;
+    font-size:15px;
 }
+
+button{
+    cursor:pointer;
+}
+
 .alumno{
     border-left:6px solid #2196f3;
 }
-.top{
-    display:flex;
-    gap:10px;
-}
-.top input{ flex:1; }
+
 canvas{ margin-top:10px; }
+
+/* BUSCADOR */
+.search-box{
+    display:flex;
+    justify-content:center;
+    margin-bottom:20px;
+}
+.search-box input{
+    width:60%;
+    max-width:600px;
+    font-size:18px;
+    padding:12px;
+}
+
+/* BOTÓN CREAR */
+.create-box{
+    display:flex;
+    justify-content:center;
+    margin-bottom:30px;
+}
+.create-box button{
+    width:250px;
+    font-size:16px;
+}
 </style>
 </head>
 
@@ -45,17 +72,21 @@ canvas{ margin-top:10px; }
 <div id="loginBox" class="card">
     <h2>Ingreso Profesor</h2>
     <input type="password" id="password" placeholder="Contraseña">
-    <button onclick="doLogin()">Ingresar</button>
-    <p><b>Claves:</b> prof1 · prof2 · prof3</p>
+    <button type="button" onclick="doLogin()">Ingresar</button>
 </div>
 
 <!-- PANEL -->
 <div id="panel" class="hidden">
-    <h2 id="profName"></h2>
+    <h2 id="profName" style="text-align:center"></h2>
 
-    <div class="card top">
+    <!-- BUSCADOR -->
+    <div class="search-box">
         <input type="text" id="search" placeholder="Buscar alumno..." oninput="renderAlumnos()">
-        <button onclick="crearAlumno()">➕ Crear alumno</button>
+    </div>
+
+    <!-- CREAR -->
+    <div class="create-box">
+        <button type="button" onclick="crearAlumno()">➕ Crear carpeta de alumno</button>
     </div>
 
     <div id="alumnos"></div>
@@ -68,6 +99,7 @@ const profesores = {
     prof2:"Profesor 2",
     prof3:"Profesor 3"
 };
+
 let profesorActual = null;
 
 /* ===== DATA ===== */
@@ -82,13 +114,11 @@ function save(){
 /* ===== LOGIN ===== */
 function doLogin(){
     const pass = document.getElementById("password").value.trim();
-    const loginBox = document.getElementById("loginBox");
-    const panel = document.getElementById("panel");
 
     if(profesores[pass]){
         profesorActual = pass;
-        loginBox.classList.add("hidden");
-        panel.classList.remove("hidden");
+        document.getElementById("loginBox").classList.add("hidden");
+        document.getElementById("panel").classList.remove("hidden");
         document.getElementById("profName").innerText = profesores[pass];
         renderAlumnos();
     }else{
@@ -96,13 +126,16 @@ function doLogin(){
     }
 }
 
-/* ===== CREAR ALUMNO ===== */
+/* ===== CREAR ALUMNO (ARREGLADO) ===== */
 function crearAlumno(){
+    if(!profesorActual) return;
+
     data.profesores[profesorActual].push({
         nombre:"Alumno sin nombre",
         registros:[],
         comentario:""
     });
+
     save();
     renderAlumnos();
 }
@@ -118,16 +151,18 @@ function renderAlumnos(){
     .forEach((a,i)=>{
         const div = document.createElement("div");
         div.className = "card alumno";
+
         div.innerHTML = `
             <input value="${a.nombre}">
             <input type="number" placeholder="Metros nadados">
-            <button>Agregar metros</button>
+            <button type="button">Agregar metros</button>
 
             <canvas id="chart${i}"></canvas>
 
             <textarea placeholder="Comentario">${a.comentario}</textarea>
-            <button>📥 Descargar PDF</button>
+            <button type="button">📥 Descargar PDF</button>
         `;
+
         cont.appendChild(div);
 
         const nameInput = div.querySelectorAll("input")[0];
@@ -150,8 +185,8 @@ function renderAlumnos(){
         addBtn.onclick = ()=>{
             if(!metrosInput.value) return;
             a.registros.push({
-                fecha: new Date().toLocaleDateString(),
-                metros: Number(metrosInput.value)
+                fecha:new Date().toLocaleDateString(),
+                metros:Number(metrosInput.value)
             });
             metrosInput.value="";
             save();
@@ -164,7 +199,7 @@ function renderAlumnos(){
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF();
             pdf.text(`Alumno: ${a.nombre}`,10,10);
-            let y = 20;
+            let y=20;
             a.registros.forEach(r=>{
                 pdf.text(`${r.fecha}: ${r.metros} m`,10,y);
                 y+=8;

@@ -4,22 +4,27 @@
 <meta charset="UTF-8">
 <title>Record_Pages</title>
 
+<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body{
     font-family: Arial, sans-serif;
-    background:#f4f6f8;
+    background:#f2f4f7;
     margin:0;
     padding:20px;
 }
 h2,h3{
-    margin-top:0;
+    margin:5px 0;
 }
-input, button{
+input, textarea, button{
     padding:8px;
     margin:5px 0;
+    width:100%;
+    box-sizing:border-box;
 }
 button{
     cursor:pointer;
@@ -32,13 +37,19 @@ button{
     padding:15px;
     margin-bottom:15px;
     border-radius:8px;
-    box-shadow:0 2px 5px rgba(0,0,0,0.1);
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
 }
 .alumno{
-    border-left:5px solid #2196f3;
+    border-left:6px solid #2196f3;
 }
 canvas{
     max-width:100%;
+    margin-top:10px;
+}
+.topbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
 }
 </style>
 </head>
@@ -49,19 +60,19 @@ canvas{
 <div id="login" class="card">
     <h2>Ingreso de Profesor</h2>
     <input type="password" id="password" placeholder="Contraseña">
-    <br>
     <button onclick="login()">Ingresar</button>
 </div>
 
 <!-- PANEL -->
 <div id="panel" class="hidden">
-    <h2 id="profName"></h2>
-    <button onclick="logout()">Cerrar sesión</button>
+    <div class="topbar">
+        <h2 id="profName"></h2>
+        <button onclick="logout()">Cerrar sesión</button>
+    </div>
 
     <div class="card">
-        <h3>Agregar alumno</h3>
+        <h3>Crear subcarpeta (Alumno)</h3>
         <input type="text" id="newAlumno" placeholder="Nombre del alumno">
-        <br>
         <button onclick="addAlumno()">Crear alumno</button>
     </div>
 
@@ -69,7 +80,7 @@ canvas{
 </div>
 
 <script>
-/* CONFIG PROFESORES */
+/* ===== CONFIGURACIÓN ===== */
 const profesores = {
     prof1: "Profesor 1",
     prof2: "Profesor 2",
@@ -78,7 +89,7 @@ const profesores = {
 
 let profesorActual = null;
 
-/* DATA */
+/* ===== DATA CON LOCALSTORAGE ===== */
 let data = JSON.parse(localStorage.getItem("natacionData")) || {
     profesores:{
         prof1:[],
@@ -91,7 +102,7 @@ function save(){
     localStorage.setItem("natacionData", JSON.stringify(data));
 }
 
-/* LOGIN */
+/* ===== LOGIN ===== */
 function login(){
     const pass = document.getElementById("password").value;
     if(profesores[pass]){
@@ -109,38 +120,46 @@ function logout(){
     location.reload();
 }
 
-/* ALUMNOS */
+/* ===== ALUMNOS (SUBCARPETAS) ===== */
 function addAlumno(){
     const nombre = document.getElementById("newAlumno").value.trim();
-    if(!nombre) return;
+    if(!nombre){
+        alert("Escribe el nombre del alumno");
+        return;
+    }
+
     data.profesores[profesorActual].push({
-        nombre,
-        registros:[],
-        comentario:""
+        nombre: nombre,
+        registros: [],
+        comentario: ""
     });
-    document.getElementById("newAlumno").value="";
+
     save();
+    document.getElementById("newAlumno").value = "";
     renderAlumnos();
 }
 
+/* ===== RENDER ===== */
 function renderAlumnos(){
     const cont = document.getElementById("alumnos");
-    cont.innerHTML="";
+    cont.innerHTML = "";
+
     data.profesores[profesorActual].forEach((a,i)=>{
         const div = document.createElement("div");
-        div.className="card alumno";
-        div.innerHTML=`
+        div.className = "card alumno";
+
+        div.innerHTML = `
             <h3>${a.nombre}</h3>
 
             <input type="number" placeholder="Metros nadados">
-            <button>Agregar</button>
+            <button>Agregar metros</button>
 
             <canvas id="chart${i}"></canvas>
 
-            <textarea placeholder="Comentario para la próxima clase" style="width:100%;height:60px;">${a.comentario}</textarea>
-            <br>
+            <textarea placeholder="Comentario para la próxima clase">${a.comentario}</textarea>
             <button>📥 Descargar PDF</button>
         `;
+
         cont.appendChild(div);
 
         const input = div.querySelector("input");
@@ -149,13 +168,15 @@ function renderAlumnos(){
         const btnPDF = div.querySelectorAll("button")[1];
 
         btnAdd.onclick = ()=>{
-            const val = Number(input.value);
-            if(!val) return;
+            const metros = Number(input.value);
+            if(!metros || metros <= 0) return;
+
             a.registros.push({
                 fecha: new Date().toLocaleDateString(),
-                metros: val
+                metros: metros
             });
-            input.value="";
+
+            input.value = "";
             save();
             renderAlumnos();
         };
@@ -165,30 +186,36 @@ function renderAlumnos(){
             save();
         };
 
-        drawChart(`chart${i}`, a.registros);
+        setTimeout(()=>{
+            drawChart(`chart${i}`, a.registros);
+        },0);
 
         btnPDF.onclick = ()=>{
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF();
+
             pdf.text(`Alumno: ${a.nombre}`,10,10);
-            let y=20;
+            let y = 20;
+
             a.registros.forEach(r=>{
                 pdf.text(`${r.fecha}: ${r.metros} m`,10,y);
-                y+=8;
+                y += 8;
             });
+
             pdf.text("Comentario:",10,y+5);
             pdf.text(a.comentario || "-",10,y+13);
+
             pdf.save(`${a.nombre}.pdf`);
         };
     });
 }
 
-/* GRAFICA */
+/* ===== GRÁFICA ===== */
 function drawChart(id, registros){
-    const ctx = document.getElementById(id);
-    if(!ctx) return;
+    const canvas = document.getElementById(id);
+    if(!canvas) return;
 
-    new Chart(ctx,{
+    new Chart(canvas,{
         type:'line',
         data:{
             labels: registros.map(r=>r.fecha),
@@ -196,7 +223,7 @@ function drawChart(id, registros){
                 label:'Metros nadados',
                 data: registros.map(r=>r.metros),
                 borderWidth:2,
-                fill:false
+                tension:0.3
             }]
         },
         options:{

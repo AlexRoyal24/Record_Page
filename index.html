@@ -4,53 +4,37 @@
 <meta charset="UTF-8">
 <title>Record_Pages</title>
 
-<!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<!-- jsPDF -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
 body{
     font-family: Arial, sans-serif;
     background:#f2f4f7;
-    margin:0;
     padding:20px;
-}
-h2,h3{
-    margin:5px 0;
-}
-input, textarea, button{
-    padding:8px;
-    margin:5px 0;
-    width:100%;
-    box-sizing:border-box;
-}
-button{
-    cursor:pointer;
-}
-.hidden{
-    display:none;
 }
 .card{
     background:#fff;
     padding:15px;
     margin-bottom:15px;
     border-radius:8px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+    box-shadow:0 2px 6px rgba(0,0,0,.1);
+}
+.hidden{display:none}
+button,input,textarea{
+    width:100%;
+    padding:8px;
+    margin:5px 0;
 }
 .alumno{
     border-left:6px solid #2196f3;
 }
-canvas{
-    max-width:100%;
-    margin-top:10px;
-}
-.topbar{
+.top{
     display:flex;
-    justify-content:space-between;
-    align-items:center;
+    gap:10px;
 }
+.top input{flex:1}
+canvas{margin-top:10px}
 </style>
 </head>
 
@@ -58,178 +42,141 @@ canvas{
 
 <!-- LOGIN -->
 <div id="login" class="card">
-    <h2>Ingreso de Profesor</h2>
+    <h2>Ingreso Profesor</h2>
     <input type="password" id="password" placeholder="Contraseña">
     <button onclick="login()">Ingresar</button>
 </div>
 
 <!-- PANEL -->
 <div id="panel" class="hidden">
-    <div class="topbar">
-        <h2 id="profName"></h2>
-        <button onclick="logout()">Cerrar sesión</button>
-    </div>
+    <h2 id="profName"></h2>
 
-    <div class="card">
-        <h3>Crear subcarpeta (Alumno)</h3>
-        <input type="text" id="newAlumno" placeholder="Nombre del alumno">
-        <button onclick="addAlumno()">Crear alumno</button>
+    <div class="card top">
+        <input type="text" id="search" placeholder="Buscar alumno..." oninput="renderAlumnos()">
+        <button onclick="crearAlumno()">➕ Crear alumno</button>
     </div>
 
     <div id="alumnos"></div>
 </div>
 
 <script>
-/* ===== CONFIGURACIÓN ===== */
+/* CONFIG */
 const profesores = {
-    prof1: "Profesor 1",
-    prof2: "Profesor 2",
-    prof3: "Profesor 3"
+    prof1:"Profesor 1",
+    prof2:"Profesor 2",
+    prof3:"Profesor 3"
 };
+let profesorActual=null;
 
-let profesorActual = null;
-
-/* ===== DATA CON LOCALSTORAGE ===== */
+/* DATA */
 let data = JSON.parse(localStorage.getItem("natacionData")) || {
-    profesores:{
-        prof1:[],
-        prof2:[],
-        prof3:[]
-    }
+    profesores:{ prof1:[], prof2:[], prof3:[] }
 };
 
 function save(){
     localStorage.setItem("natacionData", JSON.stringify(data));
 }
 
-/* ===== LOGIN ===== */
+/* LOGIN */
 function login(){
-    const pass = document.getElementById("password").value;
+    const pass = password.value;
     if(profesores[pass]){
         profesorActual = pass;
-        document.getElementById("login").classList.add("hidden");
-        document.getElementById("panel").classList.remove("hidden");
-        document.getElementById("profName").innerText = profesores[pass];
+        login.classList.add("hidden");
+        panel.classList.remove("hidden");
+        profName.innerText = profesores[pass];
         renderAlumnos();
-    }else{
-        alert("Contraseña incorrecta");
-    }
+    }else alert("Clave incorrecta");
 }
 
-function logout(){
-    location.reload();
-}
-
-/* ===== ALUMNOS (SUBCARPETAS) ===== */
-function addAlumno(){
-    const nombre = document.getElementById("newAlumno").value.trim();
-    if(!nombre){
-        alert("Escribe el nombre del alumno");
-        return;
-    }
-
+/* CREAR ALUMNO */
+function crearAlumno(){
     data.profesores[profesorActual].push({
-        nombre: nombre,
-        registros: [],
-        comentario: ""
+        nombre:"Alumno sin nombre",
+        registros:[],
+        comentario:""
     });
-
     save();
-    document.getElementById("newAlumno").value = "";
     renderAlumnos();
 }
 
-/* ===== RENDER ===== */
+/* RENDER */
 function renderAlumnos(){
-    const cont = document.getElementById("alumnos");
-    cont.innerHTML = "";
+    const cont = alumnos;
+    cont.innerHTML="";
+    const filtro = search.value.toLowerCase();
 
-    data.profesores[profesorActual].forEach((a,i)=>{
-        const div = document.createElement("div");
-        div.className = "card alumno";
-
-        div.innerHTML = `
-            <h3>${a.nombre}</h3>
-
+    data.profesores[profesorActual]
+    .filter(a=>a.nombre.toLowerCase().includes(filtro))
+    .forEach((a,i)=>{
+        const div=document.createElement("div");
+        div.className="card alumno";
+        div.innerHTML=`
+            <input value="${a.nombre}">
             <input type="number" placeholder="Metros nadados">
             <button>Agregar metros</button>
-
-            <canvas id="chart${i}"></canvas>
-
-            <textarea placeholder="Comentario para la próxima clase">${a.comentario}</textarea>
-            <button>📥 Descargar PDF</button>
+            <canvas id="c${i}"></canvas>
+            <textarea placeholder="Comentario">${a.comentario}</textarea>
+            <button>📥 PDF</button>
         `;
-
         cont.appendChild(div);
 
-        const input = div.querySelector("input");
-        const btnAdd = div.querySelectorAll("button")[0];
-        const textarea = div.querySelector("textarea");
-        const btnPDF = div.querySelectorAll("button")[1];
+        const name=div.querySelectorAll("input")[0];
+        const metros=div.querySelectorAll("input")[1];
+        const add=div.querySelectorAll("button")[0];
+        const txt=div.querySelector("textarea");
+        const pdf=div.querySelectorAll("button")[1];
 
-        btnAdd.onclick = ()=>{
-            const metros = Number(input.value);
-            if(!metros || metros <= 0) return;
+        name.onchange=()=>{a.nombre=name.value;save();renderAlumnos()};
+        txt.onchange=()=>{a.comentario=txt.value;save()};
 
+        add.onclick=()=>{
+            if(!metros.value) return;
             a.registros.push({
-                fecha: new Date().toLocaleDateString(),
-                metros: metros
+                fecha:new Date().toLocaleDateString(),
+                metros:Number(metros.value)
             });
-
-            input.value = "";
+            metros.value="";
             save();
             renderAlumnos();
         };
 
-        textarea.onchange = ()=>{
-            a.comentario = textarea.value;
-            save();
-        };
+        setTimeout(()=>draw(`c${i}`,a.registros),0);
 
-        setTimeout(()=>{
-            drawChart(`chart${i}`, a.registros);
-        },0);
-
-        btnPDF.onclick = ()=>{
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF();
-
-            pdf.text(`Alumno: ${a.nombre}`,10,10);
-            let y = 20;
-
+        pdf.onclick=()=>{
+            const {jsPDF}=window.jspdf;
+            const p=new jsPDF();
+            p.text(`Alumno: ${a.nombre}`,10,10);
+            let y=20;
             a.registros.forEach(r=>{
-                pdf.text(`${r.fecha}: ${r.metros} m`,10,y);
-                y += 8;
+                p.text(`${r.fecha}: ${r.metros} m`,10,y); y+=8;
             });
-
-            pdf.text("Comentario:",10,y+5);
-            pdf.text(a.comentario || "-",10,y+13);
-
-            pdf.save(`${a.nombre}.pdf`);
+            p.text("Comentario:",10,y+5);
+            p.text(a.comentario||"-",10,y+13);
+            p.save(`${a.nombre}.pdf`);
         };
     });
 }
 
-/* ===== GRÁFICA ===== */
-function drawChart(id, registros){
-    const canvas = document.getElementById(id);
-    if(!canvas) return;
-
-    new Chart(canvas,{
+/* GRAFICA */
+function draw(id,reg){
+    const c=document.getElementById(id);
+    if(!c) return;
+    new Chart(c,{
         type:'line',
         data:{
-            labels: registros.map(r=>r.fecha),
+            labels:reg.map(r=>r.fecha),
             datasets:[{
-                label:'Metros nadados',
-                data: registros.map(r=>r.metros),
+                label:'Metros',
+                data:reg.map(r=>r.metros),
                 borderWidth:2,
-                tension:0.3
+                tension:.3
             }]
         },
         options:{
             scales:{
-                x:{ title:{ display:true, text:'Fecha' }},
-                y:{ title:{ display:true, text:'Metros' }, beginAtZero:true }
+                x:{title:{display:true,text:"Fecha"}},
+                y:{title:{display:true,text:"Metros"},beginAtZero:true}
             }
         }
     });

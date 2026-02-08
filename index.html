@@ -20,11 +20,12 @@ body{
     border-radius:8px;
     box-shadow:0 2px 6px rgba(0,0,0,.1);
 }
-.hidden{display:none}
+.hidden{ display:none; }
 button,input,textarea{
     width:100%;
     padding:8px;
     margin:5px 0;
+    box-sizing:border-box;
 }
 .alumno{
     border-left:6px solid #2196f3;
@@ -33,18 +34,19 @@ button,input,textarea{
     display:flex;
     gap:10px;
 }
-.top input{flex:1}
-canvas{margin-top:10px}
+.top input{ flex:1; }
+canvas{ margin-top:10px; }
 </style>
 </head>
 
 <body>
 
 <!-- LOGIN -->
-<div id="login" class="card">
+<div id="loginBox" class="card">
     <h2>Ingreso Profesor</h2>
     <input type="password" id="password" placeholder="Contraseña">
-    <button onclick="login()">Ingresar</button>
+    <button onclick="doLogin()">Ingresar</button>
+    <p><b>Claves:</b> prof1 · prof2 · prof3</p>
 </div>
 
 <!-- PANEL -->
@@ -60,15 +62,15 @@ canvas{margin-top:10px}
 </div>
 
 <script>
-/* CONFIG */
+/* ===== CONFIG ===== */
 const profesores = {
     prof1:"Profesor 1",
     prof2:"Profesor 2",
     prof3:"Profesor 3"
 };
-let profesorActual=null;
+let profesorActual = null;
 
-/* DATA */
+/* ===== DATA ===== */
 let data = JSON.parse(localStorage.getItem("natacionData")) || {
     profesores:{ prof1:[], prof2:[], prof3:[] }
 };
@@ -77,25 +79,24 @@ function save(){
     localStorage.setItem("natacionData", JSON.stringify(data));
 }
 
-/* LOGIN */
-function login(){
-    const pass = document.getElementById("password").value;
-    const loginDiv = document.getElementById("login");
-    const panelDiv = document.getElementById("panel");
-    const profNameDiv = document.getElementById("profName");
+/* ===== LOGIN ===== */
+function doLogin(){
+    const pass = document.getElementById("password").value.trim();
+    const loginBox = document.getElementById("loginBox");
+    const panel = document.getElementById("panel");
 
     if(profesores[pass]){
         profesorActual = pass;
-        loginDiv.classList.add("hidden");
-        panelDiv.classList.remove("hidden");
-        profNameDiv.innerText = profesores[pass];
+        loginBox.classList.add("hidden");
+        panel.classList.remove("hidden");
+        document.getElementById("profName").innerText = profesores[pass];
         renderAlumnos();
     }else{
-        alert("Clave incorrecta");
+        alert("Contraseña incorrecta");
     }
 }
 
-/* CREAR ALUMNO */
+/* ===== CREAR ALUMNO ===== */
 function crearAlumno(){
     data.profesores[profesorActual].push({
         nombre:"Alumno sin nombre",
@@ -106,83 +107,95 @@ function crearAlumno(){
     renderAlumnos();
 }
 
-/* RENDER */
+/* ===== RENDER ===== */
 function renderAlumnos(){
-    const cont = alumnos;
-    cont.innerHTML="";
-    const filtro = search.value.toLowerCase();
+    const cont = document.getElementById("alumnos");
+    const filtro = document.getElementById("search").value.toLowerCase();
+    cont.innerHTML = "";
 
     data.profesores[profesorActual]
-    .filter(a=>a.nombre.toLowerCase().includes(filtro))
+    .filter(a => a.nombre.toLowerCase().includes(filtro))
     .forEach((a,i)=>{
-        const div=document.createElement("div");
-        div.className="card alumno";
-        div.innerHTML=`
+        const div = document.createElement("div");
+        div.className = "card alumno";
+        div.innerHTML = `
             <input value="${a.nombre}">
             <input type="number" placeholder="Metros nadados">
             <button>Agregar metros</button>
-            <canvas id="c${i}"></canvas>
+
+            <canvas id="chart${i}"></canvas>
+
             <textarea placeholder="Comentario">${a.comentario}</textarea>
-            <button>📥 PDF</button>
+            <button>📥 Descargar PDF</button>
         `;
         cont.appendChild(div);
 
-        const name=div.querySelectorAll("input")[0];
-        const metros=div.querySelectorAll("input")[1];
-        const add=div.querySelectorAll("button")[0];
-        const txt=div.querySelector("textarea");
-        const pdf=div.querySelectorAll("button")[1];
+        const nameInput = div.querySelectorAll("input")[0];
+        const metrosInput = div.querySelectorAll("input")[1];
+        const addBtn = div.querySelectorAll("button")[0];
+        const comment = div.querySelector("textarea");
+        const pdfBtn = div.querySelectorAll("button")[1];
 
-        name.onchange=()=>{a.nombre=name.value;save();renderAlumnos()};
-        txt.onchange=()=>{a.comentario=txt.value;save()};
-
-        add.onclick=()=>{
-            if(!metros.value) return;
-            a.registros.push({
-                fecha:new Date().toLocaleDateString(),
-                metros:Number(metros.value)
-            });
-            metros.value="";
+        nameInput.onchange = ()=>{
+            a.nombre = nameInput.value || "Alumno sin nombre";
             save();
             renderAlumnos();
         };
 
-        setTimeout(()=>draw(`c${i}`,a.registros),0);
+        comment.onchange = ()=>{
+            a.comentario = comment.value;
+            save();
+        };
 
-        pdf.onclick=()=>{
-            const {jsPDF}=window.jspdf;
-            const p=new jsPDF();
-            p.text(`Alumno: ${a.nombre}`,10,10);
-            let y=20;
-            a.registros.forEach(r=>{
-                p.text(`${r.fecha}: ${r.metros} m`,10,y); y+=8;
+        addBtn.onclick = ()=>{
+            if(!metrosInput.value) return;
+            a.registros.push({
+                fecha: new Date().toLocaleDateString(),
+                metros: Number(metrosInput.value)
             });
-            p.text("Comentario:",10,y+5);
-            p.text(a.comentario||"-",10,y+13);
-            p.save(`${a.nombre}.pdf`);
+            metrosInput.value="";
+            save();
+            renderAlumnos();
+        };
+
+        setTimeout(()=>drawChart(`chart${i}`, a.registros),0);
+
+        pdfBtn.onclick = ()=>{
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF();
+            pdf.text(`Alumno: ${a.nombre}`,10,10);
+            let y = 20;
+            a.registros.forEach(r=>{
+                pdf.text(`${r.fecha}: ${r.metros} m`,10,y);
+                y+=8;
+            });
+            pdf.text("Comentario:",10,y+5);
+            pdf.text(a.comentario || "-",10,y+13);
+            pdf.save(`${a.nombre}.pdf`);
         };
     });
 }
 
-/* GRAFICA */
-function draw(id,reg){
-    const c=document.getElementById(id);
-    if(!c) return;
-    new Chart(c,{
-        type:'line',
+/* ===== GRAFICA ===== */
+function drawChart(id, registros){
+    const canvas = document.getElementById(id);
+    if(!canvas) return;
+
+    new Chart(canvas,{
+        type:"line",
         data:{
-            labels:reg.map(r=>r.fecha),
+            labels: registros.map(r=>r.fecha),
             datasets:[{
-                label:'Metros',
-                data:reg.map(r=>r.metros),
+                label:"Metros nadados",
+                data: registros.map(r=>r.metros),
                 borderWidth:2,
-                tension:.3
+                tension:0.3
             }]
         },
         options:{
             scales:{
-                x:{title:{display:true,text:"Fecha"}},
-                y:{title:{display:true,text:"Metros"},beginAtZero:true}
+                x:{ title:{display:true,text:"Fecha"} },
+                y:{ title:{display:true,text:"Metros"}, beginAtZero:true }
             }
         }
     });
